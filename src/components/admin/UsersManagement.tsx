@@ -1,370 +1,207 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search,
-  User,
-  Mail,
-  Phone,
-  Building,
-  CreditCard,
-  Users
-} from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { Building, Users as UsersIcon } from 'lucide-react'
+import { UserForm } from './UserForm'
+import { InfoCard } from '@/components/ui/InfoCard'
+import Popup from '@/components/ui/Popup'
+import { useAlert } from '@/hooks/use-alert'
 
 interface User {
-  id: string
-  name: string
-  email: string
-  phone: string
-  role: string
-  status: string
-  unit?: {
-    name: string
-  }
-  nasabah?: {
-    accountNo: string
-    balance: number
-    totalWeight: number
-  }
-  _count: {
-    transactions: number
-  }
+  id: string;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'UNIT' | 'NASABAH';
+  unit?: { id: string; name: string };
+  nasabah?: { accountNo: string; balance: number };
 }
 
-export default function UsersManagement() {
+interface Unit {
+  id: string;
+  name: string;
+}
+
+const roleMapping: { [key in User['role']]: string } = {
+    ADMIN: 'Admin',
+    UNIT: 'Petugas Unit',
+    NASABAH: 'Nasabah',
+};
+
+interface UsersManagementProps {
+  isFormOpen: boolean;
+  setIsFormOpen: (isOpen: boolean) => void;
+}
+
+export default function UsersManagement({ isFormOpen, setIsFormOpen }: UsersManagementProps) {
   const [users, setUsers] = useState<User[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [roleFilter, setRoleFilter] = useState('all')
   const { toast } = useToast()
-
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    status: 'AKTIF',
-    unitId: ''
-  })
-
-  const [units, setUnits] = useState<any[]>([])
+  const { showAlert } = useAlert();
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token')
-      const params = new URLSearchParams()
-      if (searchTerm) params.append('search', searchTerm)
-      if (roleFilter && roleFilter !== 'all') params.append('role', roleFilter)
-      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
-      
-      const response = await fetch(`/api/users?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.users)
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memuat data pengguna",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+      const response = await fetch('/api/users', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (!response.ok) throw new Error('Gagal memuat pengguna');
+      const data = await response.json()
+      setUsers(data.users)
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }
 
   const fetchUnits = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/units', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUnits(data.units)
-      }
-    } catch (error) {
-      console.error('Failed to fetch units:', error)
-    }
+      const response = await fetch('/api/units', { headers: { 'Authorization': `Bearer ${token}` } })
+      if (!response.ok) throw new Error('Gagal memuat unit');
+      const data = await response.json()
+      setUnits(data.units)
+    } catch (error: any) { /* Fail silently */ }
+  }
+
+  const fetchData = async () => {
+    setLoading(true)
+    await Promise.all([fetchUsers(), fetchUnits()])
+    setLoading(false)
   }
 
   useEffect(() => {
-    fetchUsers()
-    fetchUnits()
-  }, [searchTerm, roleFilter, statusFilter])
+    fetchData();
+  }, [])
 
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUser) return
-    
+  const handleFormSubmit = async (userData: Partial<User>) => {
+    const method = editingUser ? 'PUT' : 'POST';
+    const endpoint = editingUser ? `/api/users?id=${editingUser.id}` : '/api/users';
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/users', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          id: selectedUser.id,
-          ...formData
-        })
-      })
-      
-      if (response.ok) {
-        toast({
-          title: "Berhasil",
-          description: "Pengguna berhasil diperbarui",
-        })
-        setIsEditDialogOpen(false)
-        setSelectedUser(null)
-        setFormData({ name: '', phone: '', status: 'AKTIF', unitId: '' })
-        fetchUsers()
-      } else {
-        const data = await response.json()
-        toast({
-          title: "Error",
-          description: data.error,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memperbarui pengguna",
-        variant: "destructive",
-      })
+        const token = localStorage.getItem('token');
+        const response = await fetch(endpoint, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(userData),
+        });
+        const resData = await response.json();
+        if (!response.ok) throw new Error(resData.message || 'Gagal menyimpan pengguna');
+        
+        toast({ title: "Sukses", description: `Pengguna berhasil ${editingUser ? 'diperbarui' : 'diperbarui'}.` });
+        setIsFormOpen(false);
+        setEditingUser(null);
+        await fetchUsers(); // Re-fetch users
+    } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setIsFormOpen(true);
   }
 
-  const openEditDialog = (user: User) => {
-    setSelectedUser(user)
-    setFormData({
-      name: user.name,
-      phone: user.phone,
-      status: user.status,
-      unitId: user.unit?.name || ''
-    })
-    setIsEditDialogOpen(true)
+  const handleDelete = (userId: string) => {
+    showAlert({
+        type: 'warning',
+        title: 'Hapus Pengguna',
+        message: 'Apakah Anda yakin ingin menghapus pengguna ini?',
+        onConfirm: async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/users?id=${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.message || 'Gagal menghapus pengguna');
+                }
+                toast({ title: "Sukses", description: "Pengguna berhasil dihapus." });
+                await fetchUsers();
+            } catch (error: any) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+            }
+        },
+        onCancel: () => {},
+        confirmText: 'Hapus',
+        cancelText: 'Batal'
+    });
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR'
-    }).format(amount)
-  }
+  const filteredUsers = users.filter(user => 
+      (user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (roleFilter === 'all' || user.role === roleFilter)
+  );
 
-  const formatWeight = (weight: number) => {
-    return `${weight.toFixed(2)} kg`
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-      </div>
-    )
-  }
+  if (loading) return <div className="flex justify-center items-center h-40"><div className="w-8 h-8 border-4 border-t-green-600 border-gray-200 rounded-full animate-spin"></div></div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold">Manajemen Pengguna</h2>
-          <p className="text-gray-600">Kelola data pengguna sistem</p>
-        </div>
-      </div>
-
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Cari pengguna..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua</SelectItem>
-            <SelectItem value="ADMIN">Admin</SelectItem>
-            <SelectItem value="UNIT">Unit</SelectItem>
-            <SelectItem value="NASABAH">Nasabah</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua</SelectItem>
-            <SelectItem value="AKTIF">Aktif</SelectItem>
-            <SelectItem value="DITANGGUHKAN">Ditangguhkan</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <ScrollArea className="h-96">
-        <div className="grid gap-4">
-          {users.map((user) => (
-            <Card key={user.id}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-green-600" />
-                      <h3 className="font-semibold">{user.name}</h3>
-                      <Badge variant={user.status === 'AKTIF' ? 'default' : 'secondary'}>
-                        {user.status}
-                      </Badge>
-                      <Badge variant="outline">
-                        {user.role}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        {user.email}
-                      </div>
-                      {user.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {user.phone}
-                        </div>
-                      )}
-                    </div>
-                    {user.unit && (
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Building className="h-4 w-4" />
-                        {user.unit.name}
-                      </div>
-                    )}
-                    {user.nasabah && (
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <CreditCard className="h-4 w-4" />
-                          {user.nasabah.accountNo}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">{formatCurrency(user.nasabah.balance)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">{formatWeight(user.nasabah.totalWeight)}</span>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">{user._count.transactions}</span>
-                        transaksi
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDialog(user)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </ScrollArea>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Pengguna</DialogTitle>
-            <DialogDescription>
-              Perbarui data pengguna
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleEdit} className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Nama</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
+    <div>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div className="w-full md:w-1/2 lg:w-1/3">
+                <Input placeholder="Cari nama atau email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
-            <div>
-              <Label htmlFor="edit-phone">No. Telepon</Label>
-              <Input
-                id="edit-phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AKTIF">Aktif</SelectItem>
-                  <SelectItem value="DITANGGUHKAN">Ditangguhkan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedUser?.role === 'UNIT' && (
-              <div>
-                <Label htmlFor="edit-unit">Unit</Label>
-                <Select value={formData.unitId} onValueChange={(value) => setFormData({ ...formData, unitId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+            <div className="flex gap-2 w-full md:w-auto">
+                 <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filter Role" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Role</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="UNIT">Petugas Unit</SelectItem>
+                        <SelectItem value="NASABAH">Nasabah</SelectItem>
+                    </SelectContent>
                 </Select>
-              </div>
-            )}
-            <Button type="submit" className="w-full">
-              Perbarui
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </div>
+        </div>
+
+        <Popup isOpen={isFormOpen} setIsOpen={setIsFormOpen} title={editingUser ? 'Edit Pengguna' : 'Tambah Pengguna'}>
+            <UserForm 
+                setIsOpen={setIsFormOpen} 
+                onSubmit={handleFormSubmit} 
+                initialData={editingUser} 
+                units={units} 
+            />
+        </Popup>
+
+        <div className="space-y-4">
+            {filteredUsers.map(user => (
+                <InfoCard
+                    key={user.id}
+                    id={user.id}
+                    title={user.name}
+                    subtitle={roleMapping[user.role]}
+                    icon={user.role === 'UNIT' ? <Building className="w-6 h-6 text-gray-600"/> : <UsersIcon className="w-6 h-6 text-gray-600"/>}
+                    initialInfo={
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div className="font-semibold text-gray-500">Email</div><div>{user.email}</div>
+                            {user.unit && <><div className="font-semibold text-gray-500">Unit</div><div>{user.unit.name}</div></>}
+                        </div>
+                    }
+                    expandedInfo={
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            {user.nasabah && <><div className="font-semibold text-gray-500">No. Rekening</div><div>{user.nasabah.accountNo}</div></>}
+                            {user.nasabah && <><div className="font-semibold text-gray-500">Saldo</div><div>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(user.nasabah.balance)}</div></>}
+                        </div>
+                    }
+                    actionButtons={
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>Edit</Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id)}>Hapus</Button>
+                        </>
+                    }
+                />
+            ))}
+        </div>
+        {filteredUsers.length === 0 && (
+            <div className="text-center py-10 text-gray-500">
+                <p>Tidak ada pengguna yang cocok dengan kriteria pencarian.</p>
+            </div>
+        )}
     </div>
   )
 }

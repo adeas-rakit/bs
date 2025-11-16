@@ -6,6 +6,7 @@ import AuthPage from '@/components/auth/AuthPage'
 import AdminDashboard from '@/components/dashboard/AdminDashboard'
 import UnitDashboard from '@/components/dashboard/UnitDashboard'
 import NasabahDashboard from '@/components/dashboard/NasabahDashboard'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
@@ -19,108 +20,132 @@ export default function Home() {
     const autoEmail = urlParams.get('email')
     const autoPassword = urlParams.get('password')
 
-    if (autoEmail && autoPassword && !token && !userData) {
-      // Auto login from demo accounts page
-      const autoLogin = async () => {
-        try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: autoEmail, password: autoPassword }),
-          })
-
-          const data = await response.json()
-
-          if (response.ok) {
-            localStorage.setItem('token', data.token)
-            localStorage.setItem('user', JSON.stringify(data.user))
-            
-            toast({
-              title: "Login berhasil",
-              description: `Selamat datang kembali, ${data.user.name}!`,
-            })
-
-            // Clear URL params
-            window.history.replaceState({}, document.title, window.location.pathname)
-          } else {
-            toast({
-              title: "Login gagal",
-              description: data.error,
-              variant: "destructive",
-            })
-          }
-        } catch (error) {
+    const autoLogin = async () => {
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: autoEmail, password: autoPassword }),
+        })
+        const data = await response.json()
+        if (response.ok) {
+          localStorage.setItem('token', data.token)
+          localStorage.setItem('user', JSON.stringify(data.user))
+          setUser(data.user)
           toast({
-            title: "Terjadi kesalahan",
-            description: "Silakan coba lagi",
+            title: "Login berhasil",
+            description: `Selamat datang kembali, ${data.user.name}!`,
+          })
+          window.history.replaceState({}, document.title, window.location.pathname)
+        } else {
+          toast({
+            title: "Login gagal",
+            description: data.error,
             variant: "destructive",
           })
         }
+      } catch (error) {
+        toast({
+          title: "Terjadi kesalahan",
+          description: "Silakan coba lagi",
+          variant: "destructive",
+        })
       }
-
-      autoLogin()
-      return
     }
 
-    if (token && userData) {
-      try {
-        const parsedUser = JSON.parse(userData)
-        setUser(parsedUser)
-        
-        fetch('/api/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }).then(res => res.json())
-          .then(data => {
+    const fetchUser = async () => {
+      if (token && userData) {
+        try {
+          const parsedUser = JSON.parse(userData)
+          setUser(parsedUser)
+
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+
+          if(response.ok) {
+            const data = await response.json()
             if (data.user) {
               setUser(data.user)
               localStorage.setItem('user', JSON.stringify(data.user))
             } else {
-              localStorage.removeItem('token')
-              localStorage.removeItem('user')
-              setUser(null)
+              handleLogout()
             }
-          })
-          .catch(() => {
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-            setUser(null)
-          })
-      } catch (error) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        setUser(null)
+          } else {
+            handleLogout()
+          }
+        } catch (error) {
+          handleLogout()
+        }
+      } else if (autoEmail && autoPassword) {
+        await autoLogin()
       }
+      setLoading(false)
     }
-    setLoading(false)
+
+    fetchUser()
   }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setUser(null)
+  }
+
+  const renderDashboard = () => {
+    if (!user) return <AuthPage />;
+
+    switch (user.role) {
+      case 'ADMIN':
+        return <AdminDashboard user={user} />;
+      case 'UNIT':
+        return <UnitDashboard user={user} />;
+      case 'NASABAH':
+        return <NasabahDashboard user={user} />;
+      default:
+        return <AuthPage />;
+    }
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 360],
+          }}
+          transition={{
+            duration: 2,
+            ease: "easeInOut",
+            repeat: Infinity,
+          }}
+        >
+          <svg className="w-24 h-24 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v.01M12 20v.01M4.93 4.93l.01.01M19.07 19.07l.01.01M4.93 19.07l.01-.01M19.07 4.93l.01-.01M20 12h-.01M4 12h-.01" />
+          </svg>
+        </motion.div>
       </div>
     )
   }
 
-  if (!user) {
-    return <AuthPage />
-  }
-
-  if (user.role === 'ADMIN') {
-    return <AdminDashboard user={user} />
-  }
-
-  if (user.role === 'UNIT') {
-    return <UnitDashboard user={user} />
-  }
-
-  if (user.role === 'NASABAH') {
-    return <NasabahDashboard user={user} />
-  }
-
-  return <AuthPage />
+  return (
+    <main className="min-h-screen bg-gray-50">
+       <AnimatePresence mode="wait">
+        <motion.div
+          key={user ? user.role : 'auth'}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          {renderDashboard()}
+        </motion.div>
+      </AnimatePresence>
+    </main>
+  )
 }

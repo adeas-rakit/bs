@@ -8,13 +8,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, phone, role } = await request.json()
+    const { email, password, name, phone, role, unitId } = await request.json()
 
     if (!email || !password || !name) {
       return NextResponse.json(
         { error: 'Email, password, dan nama diperlukan' },
         { status: 400 }
       )
+    }
+
+    if (role === 'NASABAH' && !unitId) {
+        return NextResponse.json(
+            { error: 'ID Unit diperlukan untuk mendaftarkan nasabah' },
+            { status: 400 }
+        );
     }
 
     const existingUser = await db.user.findUnique({
@@ -45,7 +52,8 @@ export async function POST(request: NextRequest) {
         name,
         phone,
         role: role || 'NASABAH',
-        qrCode
+        qrCode,
+        unitId: role === 'NASABAH' ? unitId : null,
       },
       include: {
         unit: true,
@@ -56,8 +64,13 @@ export async function POST(request: NextRequest) {
     if (role === 'NASABAH') {
       await db.nasabah.create({
         data: {
-          userId: user.id,
-          accountNo: accountNo!
+          accountNo: accountNo!,
+          user: {
+            connect: { id: user.id }
+          },
+          unit: {
+            connect: { id: unitId }
+          }
         }
       })
 

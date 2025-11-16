@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await authenticateUser(request)
     
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'ADMIN' && user.role !== 'UNIT') {
       return NextResponse.json(
         { error: 'Akses ditolak' },
         { status: 403 }

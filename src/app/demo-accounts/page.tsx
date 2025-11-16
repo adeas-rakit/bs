@@ -202,7 +202,7 @@ export default function DemoAccounts() {
 
                       <Button 
                         className="w-full mt-3"
-                        onClick={() => handleLogin(account.email, account.password)}
+                        onClick={() => handleQuickLogin(account.email, account.password)}
                       >
                         Login sebagai {account.name}
                       </Button>

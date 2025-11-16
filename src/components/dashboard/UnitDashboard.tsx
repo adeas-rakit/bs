@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { 
   Users, 
   TrendingUp, 
@@ -14,250 +11,92 @@ import {
   Scale,
   ArrowUpRight,
   ArrowDownRight,
-  Settings,
-  LogOut,
   Home,
-  UserCheck,
-  Plus,
-  Search,
-  Edit,
-  User,
-  Phone,
-  CreditCard,
-  QrCode
+  UserPlus
 } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
 import NasabahManagement from '@/components/unit/NasabahManagement'
 import DepositForm from '@/components/unit/DepositForm'
-import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import Sidebar from '@/components/ui/sidebar'
+import BottomBar from '@/components/ui/bottom-bar'
 
 interface DashboardData {
-  totalNasabah: number
-  totalTransactions: number
-  totalDepositAmount: number
-  totalWithdrawalAmount: number
-  totalActiveBalance: number
-  totalWasteCollected: number
-  topNasabah: any[]
-  recentTransactions: any[]
+  totalNasabah: number;
+  totalTransactions: number;
+  totalDepositAmount: number;
+  totalWithdrawalAmount: number;
+  totalActiveBalance: number;
+  totalWasteCollected: number;
+  topNasabah: any[];
+  recentTransactions: any[];
 }
 
-import BottomNavigation from '@/components/common/BottomNavigation'
-
-import { useRealtimeData } from '@/hooks/useRealtimeData'
-
 export default function UnitDashboard({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState('overview')
-  const { toast } = useToast()
-  const router = useRouter()
-  
-  const { data: dashboardData, loading, refetch } = useRealtimeData<DashboardData>('/api/dashboard', 30000)
+  const [activeTab, setActiveTab] = useState('overview');
+  const { data: dashboardData, loading, refetch } = useRealtimeData<DashboardData>({endpoint: '/api/dashboard', refreshInterval: 30000});
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/')
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR'
-    }).format(amount)
-  }
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  const formatWeight = (weight: number) => `${(weight || 0).toFixed(2)} kg`;
 
-  const formatWeight = (weight: number) => {
-    return `${weight.toFixed(2)} kg`
-  }
+  const navItems = [
+    { name: 'Iktisar', value: 'overview', icon: Home },
+    { name: 'Nasabah', value: 'nasabah', icon: Users },
+    { name: 'Menabung', value: 'deposit', icon: UserPlus },
+  ];
 
-  if (loading) {
+  const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
+
+  if (loading && !dashboardData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-20 h-20 border-8 border-t-green-600 border-gray-200 rounded-full" />
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Unit</h1>
-            <p className="text-gray-600">Selamat datang, {user.name}</p>
-            {user.unit && (
-              <p className="text-sm text-green-600 font-medium">{user.unit.name}</p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Pengaturan
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <main className="flex-1">
+        <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+          <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
+              {activeTab === 'overview' && dashboardData && (
+                <motion.div variants={cardVariants} initial="hidden" animate="visible">
+                  <div className="mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800">Dashboard Unit {user.unit?.name}</h1>
+                    <p className="text-gray-500">Manajemen operasional unit Anda.</p>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Nasabah</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardData.totalNasabah}</div></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Transaksi</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardData.totalTransactions}</div></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Sampah</CardTitle><Scale className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatWeight(dashboardData.totalWasteCollected)}</div></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Pemasukan</CardTitle><ArrowUpRight className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.totalDepositAmount)}</div></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Penarikan</CardTitle><ArrowDownRight className="h-4 w-4 text-red-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(dashboardData.totalWithdrawalAmount)}</div></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Saldo Aktif</CardTitle><DollarSign className="h-4 w-4 text-indigo-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-indigo-600">{formatCurrency(dashboardData.totalActiveBalance)}</div></CardContent></Card></motion.div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                    <motion.div variants={itemVariants}><Card><CardHeader><CardTitle>Nasabah Teratas</CardTitle></CardHeader><CardContent><ScrollArea className="h-80"><div className="space-y-4 pr-4">{dashboardData.topNasabah.map((n, i) => (<div key={n.id} className="flex items-center"><div className="font-bold mr-4">#{i + 1}</div><div className="flex-grow"><p className="font-semibold">{n.user.name}</p><p className="text-sm text-muted-foreground">Total: {formatWeight(n.totalWeight)}</p></div><div className="text-right"><div className="font-medium">{n.depositCount}x</div><div className="text-sm text-muted-foreground">Nabung</div></div></div>))}</div></ScrollArea></CardContent></Card></motion.div>
+                    <motion.div variants={itemVariants}><Card><CardHeader><CardTitle>Aktivitas Terkini</CardTitle></CardHeader><CardContent><ScrollArea className="h-80"><div className="space-y-4 pr-4">{dashboardData.recentTransactions.map(t => (<div key={t.id} className="flex items-center"><div className="flex-grow"><p className="font-semibold">{t.transactionNo}</p><p className="text-sm text-muted-foreground">{t.nasabah.user.name}</p></div><div className="text-right"><Badge variant={t.type === 'DEPOSIT' ? 'default' : 'destructive'}>{t.type}</Badge><p className="font-semibold text-sm mt-1">{formatCurrency(t.totalAmount)}</p></div></div>))}</div></ScrollArea></CardContent></Card></motion.div>
+                  </div>
+                </motion.div>
+              )}
+              {activeTab === 'nasabah' && <NasabahManagement onUpdate={refetch} />}
+              {activeTab === 'deposit' && <DepositForm onSuccess={() => { refetch(); setActiveTab('overview'); }} />}
+            </motion.div>
+          </AnimatePresence>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Iktisar</TabsTrigger>
-            <TabsTrigger value="nasabah">Nasabah</TabsTrigger>
-            <TabsTrigger value="deposit">Menabung</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            {dashboardData && (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Nasabah</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{dashboardData.totalNasabah}</div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{dashboardData.totalTransactions}</div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Sampah Ditabung</CardTitle>
-                      <Scale className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{formatWeight(dashboardData.totalWasteCollected)}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Tabungan</CardTitle>
-                      <ArrowUpRight className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-green-600">
-                        {formatCurrency(dashboardData.totalDepositAmount)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Penarikan Berhasil</CardTitle>
-                      <ArrowDownRight className="h-4 w-4 text-red-600" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-red-600">
-                        {formatCurrency(dashboardData.totalWithdrawalAmount)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Saldo Aktif</CardTitle>
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">
-                        {formatCurrency(dashboardData.totalActiveBalance)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Top Nasabah</CardTitle>
-                      <CardDescription>Nasabah dengan tabungan terbanyak</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-64">
-                        <div className="space-y-3">
-                          {dashboardData.topNasabah.map((nasabah, index) => (
-                            <div key={nasabah.id} className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <Badge variant="outline">{index + 1}</Badge>
-                                <div>
-                                  <p className="font-medium">{nasabah.user.name}</p>
-                                  <p className="text-sm text-gray-500">{nasabah.user.phone}</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium">{formatWeight(nasabah.totalWeight)}</p>
-                                <p className="text-sm text-gray-500">{nasabah.depositCount}x</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Transaksi Terakhir</CardTitle>
-                      <CardDescription>Aktivitas transaksi terkini</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-64">
-                        <div className="space-y-3">
-                          {dashboardData.recentTransactions.map((transaction) => (
-                            <div key={transaction.id} className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium">{transaction.transactionNo}</p>
-                                <p className="text-sm text-gray-500">
-                                  {transaction.nasabah.user.name}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <Badge variant={transaction.type === 'DEPOSIT' ? 'default' : 'secondary'}>
-                                  {transaction.type === 'DEPOSIT' ? 'Tabung' : 'Tarik'}
-                                </Badge>
-                                <p className="font-medium">{formatCurrency(transaction.totalAmount)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </div>
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="nasabah">
-            <NasabahManagement onUpdate={() => refetch()} />
-          </TabsContent>
-
-          <TabsContent value="deposit">
-            <DepositForm onSuccess={() => refetch()} />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <BottomNavigation 
-        userRole={user.role} 
-        currentTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      </main>
+      <BottomBar navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
     </div>
-  )
+  );
 }

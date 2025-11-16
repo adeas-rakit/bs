@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
             email: true,
             phone: true,
             status: true,
-            createdAt: true
+            createdAt: true,
+            unitId: true
           }
         }
       },
@@ -98,19 +99,20 @@ export async function PUT(request: NextRequest) {
     const user = await authenticateUser(request)
     
     if (user.role !== 'ADMIN' && user.role !== 'UNIT') {
-      return NextResponse.json(
-        { error: 'Akses ditolak' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
     }
 
-    const { id, name, phone, status } = await request.json()
+    const { id, name, phone, status, unitId } = await request.json()
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'ID nasabah diperlukan' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'ID nasabah diperlukan' }, { status: 400 })
+    }
+
+    if (unitId) {
+        const unitExists = await db.unit.findUnique({ where: { id: unitId } });
+        if (!unitExists) {
+            return NextResponse.json({ error: 'Unit tidak ditemukan' }, { status: 404 });
+        }
     }
 
     const nasabah = await db.nasabah.findUnique({
@@ -119,35 +121,38 @@ export async function PUT(request: NextRequest) {
     })
 
     if (!nasabah) {
-      return NextResponse.json(
-        { error: 'Nasabah tidak ditemukan' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Nasabah tidak ditemukan' }, { status: 404 })
     }
 
     if (user.role === 'UNIT' && nasabah.user.unitId !== user.unit?.id) {
-      return NextResponse.json(
-        { error: 'Akses ditolak' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Akses ditolak untuk mengedit nasabah ini' }, { status: 403 })
     }
 
-    const updatedUser = await db.user.update({
-      where: { id: nasabah.userId },
-      data: {
-        ...(name && { name }),
-        ...(phone && { phone }),
-        ...(status && { status })
-      }
-    })
+    if (user.role === 'UNIT' && unitId && unitId !== user.unit?.id) {
+        return NextResponse.json({ error: 'Anda tidak dapat memindahkan nasabah ke unit lain' }, { status: 403 });
+    }
 
-    return NextResponse.json({
-      message: 'Nasabah berhasil diperbarui',
-      nasabah: {
-        ...nasabah,
-        user: updatedUser
-      }
-    })
+    const userDataToUpdate: { name?: string; phone?: string; status?: string; unitId?: string } = {};
+    if (name) userDataToUpdate.name = name;
+    if (phone) userDataToUpdate.phone = phone;
+    if (status) userDataToUpdate.status = status;
+    if (unitId) userDataToUpdate.unitId = unitId; 
+
+    await db.$transaction(async (tx) => {
+        await tx.user.update({
+            where: { id: nasabah.userId },
+            data: userDataToUpdate,
+        });
+
+        if (unitId) {
+            await tx.nasabah.update({
+                where: { id: nasabah.id },
+                data: { unitId },
+            });
+        }
+    });
+
+    return NextResponse.json({ message: 'Nasabah berhasil diperbarui' })
 
   } catch (error: any) {
     console.error('Update nasabah error:', error)
