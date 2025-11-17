@@ -21,7 +21,7 @@ interface BottomBarProps {
 
 // We can show a maximum of 4 items directly in the bar.
 // The 5th slot will always be the "More" button.
-const MAX_VISIBLE_ITEMS = 4;
+const MAX_VISIBLE_ITEMS = 3;
 
 export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, onMenuClick }: BottomBarProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)

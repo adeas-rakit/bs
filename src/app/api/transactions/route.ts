@@ -46,8 +46,6 @@ export async function GET(request: NextRequest) {
       if (nasabah) {
         where.nasabahId = nasabah.id
       }
-    } else if (user.role === 'UNIT') {
-      where.unitId = user.unit?.id
     }
 
     if (type) where.type = type
@@ -154,12 +152,13 @@ export async function POST(request: NextRequest) {
     }
 
     const transactionNo = 'TRX' + Date.now().toString().slice(-8)
+    const unitId = user.unit!.id;
 
     const transaction = await db.transaction.create({
       data: {
         transactionNo,
         nasabahId,
-        unitId: user.unit!.id,
+        unitId: unitId,
         userId: user.id,
         type,
         totalAmount,
@@ -210,11 +209,25 @@ export async function POST(request: NextRequest) {
       await db.nasabah.update({
         where: { id: nasabahId },
         data: {
-          balance: nasabah.balance + totalAmount,
-          totalWeight: nasabah.totalWeight + totalWeight,
-          depositCount: nasabah.depositCount + 1
+          balance: { increment: totalAmount },
+          totalWeight: { increment: totalWeight },
+          depositCount: { increment: 1 }
         }
       })
+
+      await db.unitNasabah.upsert({
+        where: { unitId_nasabahId: { unitId, nasabahId } },
+        create: { 
+          unitId, 
+          nasabahId, 
+          balance: totalAmount, 
+          totalWeight: totalWeight 
+        },
+        update: { 
+          balance: { increment: totalAmount }, 
+          totalWeight: { increment: totalWeight } 
+        }
+      });
     }
 
     const transactionWithItems = await db.transaction.findUnique({

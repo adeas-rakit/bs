@@ -65,7 +65,7 @@ export default function Sidebar({ user, navItems, activeTab, onTabChange, onLogo
         ))}
       </nav>
       <div className="p-2 border-t space-y-1">
-        <Button variant="ghost" className={`w-full text-sm ${isOpen ? 'justify-start' : 'justify-center'}`} title={isOpen ? '' : 'Pengaturan'}>
+        <Button variant="ghost" className={`w-full text-sm ${isOpen ? 'justify-start' : 'justify-center'}`} title={isOpen ? '' : 'Pengaturan'} onClick={() => onTabChange("settings")}>
           <Settings className={isOpen ? 'mr-3 h-4 w-4' : 'h-5 w-5'} />
           {isOpen && 'Pengaturan'}
         </Button>

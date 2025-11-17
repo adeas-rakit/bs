@@ -23,4 +23,7 @@
       };
     };
   };
+  env = {
+    CHOKIDAR_USEPOLLING = "true";
+  };
 }

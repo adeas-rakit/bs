@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcrypt'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
       include: {
         unit: {
           select: {
+            id: true,
             name: true
           }
         },
@@ -87,6 +89,60 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const user = await authenticateUser(request)
+
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Akses ditolak' },
+        { status: 403 }
+      )
+    }
+
+    const { name, email, password, role, unitId } = await request.json()
+
+    if (!name || !email || !password || !role) {
+      return NextResponse.json(
+        { error: 'Semua field harus diisi' },
+        { status: 400 }
+      )
+    }
+
+    if (role === 'UNIT' && !unitId) {
+      return NextResponse.json(
+        { error: 'Unit harus dipilih untuk pengguna dengan peran UNIT' },
+        { status: 400 }
+      )
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    const newUser = await db.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role,
+        unitId,
+      },
+    })
+
+    const { password: _, ...userWithoutPassword } = newUser
+
+    return NextResponse.json({
+      message: 'User berhasil ditambahkan',
+      user: userWithoutPassword,
+    })
+  } catch (error: any) {
+    console.error('Create user error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Terjadi kesalahan server' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const user = await authenticateUser(request)
@@ -98,11 +154,20 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { id, name, phone, status, unitId } = await request.json()
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    const { name, phone, status, unitId, role } = await request.json()
 
     if (!id) {
       return NextResponse.json(
         { error: 'ID user diperlukan' },
+        { status: 400 }
+      )
+    }
+
+    if (role === 'UNIT' && !unitId) {
+      return NextResponse.json(
+        { error: 'Unit harus dipilih untuk pengguna dengan peran UNIT' },
         { status: 400 }
       )
     }
@@ -113,11 +178,13 @@ export async function PUT(request: NextRequest) {
         ...(name && { name }),
         ...(phone && { phone }),
         ...(status && { status }),
+        ...(role && { role }),
         ...(unitId !== undefined && { unitId })
       },
       include: {
         unit: {
           select: {
+            id: true,
             name: true
           }
         },

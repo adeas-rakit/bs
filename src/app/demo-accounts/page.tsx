@@ -28,9 +28,9 @@ export default function DemoAccounts() {
       description: 'Akses penuh ke semua fitur sistem',
       accounts: [
         {
-          email: 'admin@banksampah.com',
-          password: 'admin123',
-          name: 'Admin Bank Sampah',
+          email: 'admin@bs.id',
+          password: 'admin@bs.id',
+          name: 'Admin Utama',
           features: ['Manajemen Unit', 'Manajemen Pengguna', 'Monitoring Transaksi', 'Pengaturan Harga']
         }
       ]
@@ -42,9 +42,15 @@ export default function DemoAccounts() {
       description: 'Kelola operasional unit bank sampah',
       accounts: [
         {
-          email: 'unit.jakarta@banksampah.com',
-          password: 'unit123',
-          name: 'Petugas Unit Jakarta',
+          email: 'unit@bs.id',
+          password: 'unit@bs.id',
+          name: 'Unit Setiawan (RT 1/1)',
+          features: ['Manajemen Nasabah', 'Pencatatan Tabungan', 'QR Scanner', 'Dashboard Unit']
+        },
+        {
+          email: 'unit2@bs.id',
+          password: 'unit2@bs.id',
+          name: 'Unit2 Setiawan (RT 2/1)',
           features: ['Manajemen Nasabah', 'Pencatatan Tabungan', 'QR Scanner', 'Dashboard Unit']
         }
       ]
@@ -56,19 +62,27 @@ export default function DemoAccounts() {
       description: 'Nasabah bank sampah',
       accounts: [
         {
-          email: 'budi@banksampah.com',
-          password: 'nasabah123',
-          name: 'Budi Santoso',
-          balance: 'Rp150.000',
-          weight: '12.5 kg',
+          email: 'ade@bs.id',
+          password: 'ade@bs.id',
+          name: 'Adeas',
           features: ['Lihat Saldo', 'Riwayat Transaksi', 'Kartu Digital QR']
         },
         {
-          email: 'siti@banksampah.com',
-          password: 'nasabah456',
-          name: 'Siti Nurhaliza',
-          balance: 'Rp275.000',
-          weight: '23.8 kg',
+          email: 'indri@bs.id',
+          password: 'indri@bs.id',
+          name: 'Indri',
+          features: ['Lihat Saldo', 'Riwayat Transaksi', 'Kartu Digital QR']
+        },
+        {
+          email: 'ade2@bs.id',
+          password: 'ade2@bs.id',
+          name: 'Adeas2',
+          features: ['Lihat Saldo', 'Riwayat Transaksi', 'Kartu Digital QR']
+        },
+        {
+          email: 'indri2@bs.id',
+          password: 'indri2@bs.id',
+          name: 'Indri2',
           features: ['Lihat Saldo', 'Riwayat Transaksi', 'Kartu Digital QR']
         }
       ]

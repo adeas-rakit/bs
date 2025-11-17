@@ -11,6 +11,7 @@ interface User {
   email: string;
   role: 'ADMIN' | 'UNIT' | 'NASABAH';
   unitId?: string;
+  unit?: Unit;
 }
 
 interface Unit {
@@ -27,11 +28,11 @@ interface UserFormProps {
 
 export function UserForm({ setIsOpen, onSubmit, initialData, units }: UserFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: initialData?.name || '',
+    email: initialData?.email || '',
     password: '',
-    role: 'NASABAH' as 'ADMIN' | 'UNIT' | 'NASABAH',
-    unitId: ''
+    role: initialData?.role || 'NASABAH',
+    unitId: initialData?.unit?.id || initialData?.unitId || ''
   });
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function UserForm({ setIsOpen, onSubmit, initialData, units }: UserFormPr
         email: initialData.email || '',
         password: '',
         role: initialData.role || 'NASABAH',
-        unitId: (initialData as any).unit?.id || (initialData as any).unitId || '',
+        unitId: initialData.unit?.id || initialData.unitId || '',
       });
     } else {
       setFormData({ name: '', email: '', password: '', role: 'NASABAH', unitId: '' });
@@ -76,7 +77,7 @@ export function UserForm({ setIsOpen, onSubmit, initialData, units }: UserFormPr
         <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <Select value={formData.role} onValueChange={(value: 'ADMIN' | 'UNIT' | 'NASABAH') => setFormData({ ...formData, role: value, unitId: '' })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Pilih Role" /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="NASABAH">Nasabah</SelectItem>
                     <SelectItem value="UNIT">Petugas Unit</SelectItem>

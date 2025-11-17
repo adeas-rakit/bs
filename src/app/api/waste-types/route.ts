@@ -105,3 +105,48 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await authenticateUser(request)
+    
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Akses ditolak' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    const { name, pricePerKg, status } = await request.json()
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID jenis sampah diperlukan' },
+        { status: 400 }
+      )
+    }
+
+    const updatedWasteType = await db.wasteType.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(pricePerKg && { pricePerKg }),
+        ...(status && { status })
+      }
+    })
+
+    return NextResponse.json({
+      message: 'Jenis sampah berhasil diperbarui',
+      wasteType: updatedWasteType
+    })
+
+  } catch (error: any) {
+    console.error('Update waste type error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Terjadi kesalahan server' },
+      { status: error.message.includes('Token') ? 401 : 500 }
+    )
+  }
+}

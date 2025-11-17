@@ -20,16 +20,17 @@ import Popup from '@/components/ui/Popup'
 import { useAlert } from '@/hooks/use-alert'
 
 interface Unit {
-  id: string
-  name: string
-  address: string
-  phone: string
-  status: 'AKTIF' | 'DITANGGUHKAN'
-  createdAt: string
-  _count: {
-    users: number
-    transactions: number
-  }
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  status: 'AKTIF' | 'DITANGGUHKAN';
+  createdAt: string;
+  officersCount: number;
+  transactionsCount: number;
+  registeredNasabahCount: number;
+  activeNasabahCount: number;
+  totalNasabahCount: number;
 }
 
 interface UnitsManagementProps {
@@ -171,8 +172,11 @@ export default function UnitsManagement({ isFormOpen, setIsFormOpen }: UnitsMana
                     }
                     expandedInfo={
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            <div className="font-semibold text-gray-500 flex items-center"><Users className="w-3 h-3 mr-2"/> Petugas</div><div>{unit._count.users}</div>
-                             <div className="font-semibold text-gray-500 flex items-center"><TrendingUp className="w-3 h-3 mr-2"/> Transaksi</div><div>{unit._count.transactions}</div>
+                            <div className="font-semibold text-gray-500 flex items-center"><Users className="w-3 h-3 mr-2"/> Petugas</div><div>{unit.officersCount}</div>
+                            <div className="font-semibold text-gray-500 flex items-center"><Users className="w-3 h-3 mr-2"/> Nasabah Terdaftar</div><div>{unit.registeredNasabahCount}</div>
+                            <div className="font-semibold text-gray-500 flex items-center"><Users className="w-3 h-3 mr-2"/> Nasabah Aktif</div><div>{unit.activeNasabahCount}</div>
+                            <div className="font-semibold text-gray-500 flex items-center"><Users className="w-3 h-3 mr-2"/> Total Nasabah</div><div>{unit.totalNasabahCount}</div>
+                             <div className="font-semibold text-gray-500 flex items-center"><TrendingUp className="w-3 h-3 mr-2"/> Transaksi</div><div>{unit.transactionsCount}</div>
                              <div className="font-semibold text-gray-500 flex items-center"><MapPin className="w-3 h-3 mr-2"/> Alamat</div><div>{unit.address}</div>
                         </div>
                     }

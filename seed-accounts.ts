@@ -9,69 +9,71 @@ async function createSeedAccounts() {
     console.log('⏳ Start creating seed accounts...')
 
     // 1. Create ADMIN
-    const admin = await db.user.upsert({
-      where: { email: 'admin@banksampah.com' },
+    await db.user.upsert({
+      where: { email: 'admin@bs.id' },
       update: {},
       create: {
-        email: 'admin@banksampah.com',
-        password: await bcrypt.hash('admin123', 10),
+        email: 'admin@bs.id',
+        password: await bcrypt.hash('admin@bs.id', 10),
         name: 'Admin Utama',
         role: 'ADMIN',
-        status: UserStatus.ACTIVE,
+        status: UserStatus.AKTIF,
       },
     })
 
-    // 2. Create UNIT
-    const unitJakarta = await db.unit.upsert({
-      where: { name: 'Bank Sampah Unit Jakarta Pusat' },
+    // 2. Create Units and Nasabah
+
+    // A.1. Create UNIT1
+    const unit1 = await db.unit.upsert({
+      where: { name: 'Bank Sampah Unit RT 1/1' },
       update: {},
       create: {
-        name: 'Bank Sampah Unit Jakarta Pusat',
-        address: 'Jl. Merdeka No. 1, Jakarta Pusat',
-        contactPerson: 'Ahmad Dahlan',
-        phone: '081234567890',
+        name: 'Bank Sampah Unit RT 1/1',
+        address: 'Jl. Bank Sampah Berhasil',
+        contactPerson: 'Adeas',
+        phone: '087654321012',
       },
     })
 
     await db.user.upsert({
-      where: { email: 'unit.jakarta@banksampah.com' },
+      where: { email: 'unit@bs.id' },
       update: {},
       create: {
-        email: 'unit.jakarta@banksampah.com',
-        password: await bcrypt.hash('unit123', 10),
-        name: 'Unit Jakarta Pusat',
+        email: 'unit@bs.id',
+        password: await bcrypt.hash('unit@bs.id', 10),
+        name: 'Unit Setiawan',
         role: 'UNIT',
-        status: UserStatus.ACTIVE,
-        unitId: unitJakarta.id,
+        status: UserStatus.AKTIF,
+        unitId: unit1.id,
       },
     })
 
-    // 3. Create NASABAH
-    const nasabahData = [
+    // A.1.1. Create NASABAH for UNIT1
+    const nasabahData1 = [
       {
-        email: 'budi@banksampah.com',
-        password: 'nasabah123',
-        name: 'Budi Santoso',
-        phone: '081122334455',
-        initialBalance: 150000,
+        email: 'ade@bs.id',
+        password: 'ade@bs.id',
+        name: 'Adeas',
+        phone: '08987654321',
+        initialBalance: 0,
       },
       {
-        email: 'siti@banksampah.com',
-        password: 'nasabah456',
-        name: 'Siti Nurhaliza',
-        phone: '085566778899',
-        initialBalance: 275000,
+        email: 'indri@bs.id',
+        password: 'indri@bs.id',
+        name: 'Indri',
+        phone: '087658765433',
+        initialBalance: 0,
       },
     ]
 
-    for (const data of nasabahData) {
+    for (const data of nasabahData1) {
       const accountNo = 'NSB' + Date.now().toString().slice(-8) + Math.random().toString().slice(-2)
       const qrCode = await qrcode.toDataURL(accountNo)
 
       const user = await db.user.upsert({
         where: { email: data.email },
         update: {
-            unitId: unitJakarta.id, // Ensure existing users are linked
+            unitId: unit1.id,
         },
         create: {
           email: data.email,
@@ -79,36 +81,122 @@ async function createSeedAccounts() {
           name: data.name,
           phone: data.phone,
           role: 'NASABAH',
-          status: UserStatus.ACTIVE,
+          status: UserStatus.AKTIF,
           qrCode: qrCode,
-          unitId: unitJakarta.id, // Link new user to the unit
+          unitId: unit1.id,
         },
       })
 
       await db.nasabah.upsert({
         where: { userId: user.id },
         update: {
-            unitId: unitJakarta.id, // Ensure existing nasabah are linked
+            unitId: unit1.id,
         },
         create: {
           accountNo: accountNo,
           balance: data.initialBalance,
           userId: user.id,
-          unitId: unitJakarta.id, // Link new nasabah to the unit
+          unitId: unit1.id,
         },
       })
     }
 
-    // 4. Create Waste Types
-    const wasteTypes = [
-        { name: 'Plastik', pricePerKg: 2500, unitId: unitJakarta.id },
-        { name: 'Kertas', pricePerKg: 1500, unitId: unitJakarta.id },
-        { name: 'Botol Kaca', pricePerKg: 800, unitId: unitJakarta.id },
-        { name: 'Logam', pricePerKg: 5000, unitId: unitJakarta.id },
-        { name: 'Kardus', pricePerKg: 1200, unitId: unitJakarta.id },
+    // A.2. Create UNIT2
+    const unit2 = await db.unit.upsert({
+      where: { name: 'Bank Sampah Unit RT 2/1' },
+      update: {},
+      create: {
+        name: 'Bank Sampah Unit RT 2/1',
+        address: 'Jl. Bank Sampah Sukses',
+        contactPerson: 'Adeas',
+        phone: '087654321012',
+      },
+    })
+
+    await db.user.upsert({
+      where: { email: 'unit2@bs.id' },
+      update: {},
+      create: {
+        email: 'unit2@bs.id',
+        password: await bcrypt.hash('unit2@bs.id', 10),
+        name: 'Unit2 Setiawan',
+        role: 'UNIT',
+        status: UserStatus.AKTIF,
+        unitId: unit2.id,
+      },
+    })
+
+    // A.2.1. Create NASABAH for UNIT2
+    const nasabahData2 = [
+      {
+        email: 'ade2@bs.id',
+        password: 'ade2@bs.id',
+        name: 'Adeas2',
+        phone: '08987654321',
+        initialBalance: 0,
+      },
+      {
+        email: 'indri2@bs.id',
+        password: 'indri2@bs.id',
+        name: 'Indri2',
+        phone: '087658765433',
+        initialBalance: 0,
+      },
+    ]
+
+    for (const data of nasabahData2) {
+      const accountNo = 'NSB' + Date.now().toString().slice(-8) + Math.random().toString().slice(-2)
+      const qrCode = await qrcode.toDataURL(accountNo)
+
+      const user = await db.user.upsert({
+        where: { email: data.email },
+        update: {
+            unitId: unit2.id,
+        },
+        create: {
+          email: data.email,
+          password: await bcrypt.hash(data.password, 10),
+          name: data.name,
+          phone: data.phone,
+          role: 'NASABAH',
+          status: UserStatus.AKTIF,
+          qrCode: qrCode,
+          unitId: unit2.id,
+        },
+      })
+
+      await db.nasabah.upsert({
+        where: { userId: user.id },
+        update: {
+            unitId: unit2.id,
+        },
+        create: {
+          accountNo: accountNo,
+          balance: data.initialBalance,
+          userId: user.id,
+          unitId: unit2.id,
+        },
+      })
+    }
+
+    // 3. Create Waste Types
+    const wasteTypes1 = [
+        { name: 'Plastik', pricePerKg: 2500, unitId: unit1.id },
+        { name: 'Kertas', pricePerKg: 1500, unitId: unit1.id },
+        { name: 'Botol Kaca', pricePerKg: 800, unitId: unit1.id },
+        { name: 'Logam', pricePerKg: 5000, unitId: unit1.id },
+        { name: 'Kardus', pricePerKg: 1200, unitId: unit1.id },
     ];
 
-    for (const waste of wasteTypes) {
+    const wasteTypes2 = [
+      { name: 'Plastik', pricePerKg: 2600, unitId: unit2.id },
+      { name: 'Kertas', pricePerKg: 1600, unitId: unit2.id },
+      { name: 'Botol Kaca', pricePerKg: 900, unitId: unit2.id },
+    ];
+
+    const allWasteTypes = [...wasteTypes1, ...wasteTypes2];
+
+    for (const waste of allWasteTypes) {
         await db.wasteType.upsert({
             where: { name_unitId: { name: waste.name, unitId: waste.unitId } },
             update: { pricePerKg: waste.pricePerKg },
@@ -117,27 +205,7 @@ async function createSeedAccounts() {
     }
 
     console.log('\n')
-    console.log('✅ Seed accounts created successfully!')
-    console.log('\n📋 Account Details:')
-    console.log('\n🔑 ADMIN ACCOUNT:')
-    console.log('Email: admin@banksampah.com')
-    console.log('Password: admin123')
-    
-    console.log('\n🏢 UNIT ACCOUNT:')
-    console.log('Email: unit.jakarta@banksampah.com')
-    console.log('Password: unit123')
-    
-    console.log('\n👥 NASABAH ACCOUNTS:')
-    console.log('1. Budi Santoso')
-    console.log('   Email: budi@banksampah.com')
-    console.log('   Password: nasabah123')
-    console.log('   Saldo: Rp150.000')
-    
-    console.log('2. Siti Nurhaliza')
-    console.log('   Email: siti@banksampah.com')
-    console.log('   Password: nasabah456')
-    console.log('   Saldo: Rp275.000')
-
+    console.log('✅ Seed accounts created successfully!') 
   } catch (error) {
     console.error('❌ Error creating seed accounts:', error)
   } finally {

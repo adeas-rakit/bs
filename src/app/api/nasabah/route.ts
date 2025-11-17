@@ -28,24 +28,13 @@ async function authenticateUser(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await authenticateUser(request)
+    await authenticateUser(request)
     
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const search = searchParams.get('search')
 
     let where: any = {}
-    
-    if (user.role === 'UNIT') {
-      where.user = {
-        unitId: user.unit?.id
-      }
-    } else if (user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Akses ditolak' },
-        { status: 403 }
-      )
-    }
 
     if (status) {
       where.user = {
@@ -55,14 +44,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.user = {
-        ...where.user,
-        OR: [
-          { name: { contains: search } },
-          { accountNo: { contains: search } },
-          { phone: { contains: search } }
-        ]
-      }
+      where.OR = [
+        { user: { name: { contains: search } } },
+        { accountNo: { contains: search } },
+        { user: { phone: { contains: search } } }
+      ]
     }
 
     const nasabah = await db.nasabah.findMany({
@@ -122,14 +108,6 @@ export async function PUT(request: NextRequest) {
 
     if (!nasabah) {
       return NextResponse.json({ error: 'Nasabah tidak ditemukan' }, { status: 404 })
-    }
-
-    if (user.role === 'UNIT' && nasabah.user.unitId !== user.unit?.id) {
-      return NextResponse.json({ error: 'Akses ditolak untuk mengedit nasabah ini' }, { status: 403 })
-    }
-
-    if (user.role === 'UNIT' && unitId && unitId !== user.unit?.id) {
-        return NextResponse.json({ error: 'Anda tidak dapat memindahkan nasabah ke unit lain' }, { status: 403 });
     }
 
     const userDataToUpdate: { name?: string; phone?: string; status?: string; unitId?: string } = {};
