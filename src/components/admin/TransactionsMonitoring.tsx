@@ -2,18 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
+import { DatePicker } from '@/components/ui/date-picker'
+import { EmptyState } from '@/components/ui/empty-state'
 import { 
   Calendar,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Scale,
   Building,
   User,
-  Archive
+  Archive,
+  Search
 } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { InfoCard } from '@/components/ui/InfoCard'
 import { Badge } from '@/components/ui/badge'
@@ -60,9 +62,9 @@ export default function TransactionsMonitoring() {
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const { toast } = useToast()
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -73,15 +75,15 @@ export default function TransactionsMonitoring() {
             if (searchTerm) params.append('search', searchTerm)
             if (typeFilter !== 'all') params.append('type', typeFilter)
             if (statusFilter !== 'all') params.append('status', statusFilter)
-            if (dateFrom) params.append('dateFrom', dateFrom)
-            if (dateTo) params.append('dateTo', dateTo)
+            if (dateFrom) params.append('dateFrom', dateFrom.toISOString())
+            if (dateTo) params.append('dateTo', dateTo.toISOString())
             
             const response = await fetch(`/api/transactions?${params}`, { headers: { 'Authorization': `Bearer ${token}` } })
             if (!response.ok) throw new Error('Gagal memuat data');
             const data = await response.json()
             setTransactions(data.transactions)
         } catch (error) {
-            toast({ title: "Error", description: "Gagal memuat data transaksi", variant: "destructive" })
+            toast.error("Error", { description: "Gagal memuat data transaksi" })
         } finally {
             setLoading(false)
         }
@@ -89,15 +91,28 @@ export default function TransactionsMonitoring() {
 
     const delayDebounceFn = setTimeout(() => { fetchTransactions() }, 300)
     return () => clearTimeout(delayDebounceFn)
-  }, [searchTerm, typeFilter, statusFilter, dateFrom, dateTo, toast])
+  }, [searchTerm, typeFilter, statusFilter, dateFrom, dateTo])
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
   const formatWeight = (weight: number) => `${(weight || 0).toFixed(2)} kg`
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 
+  const typeOptions = [
+    { label: "Semua Tipe", value: "all" },
+    { label: "Deposit", value: "DEPOSIT" },
+    { label: "Penarikan", value: "WITHDRAWAL" },
+  ];
+
+  const statusOptions = [
+    { label: "Semua Status", value: "all" },
+    { label: "Success", value: "SUCCESS" },
+    { label: "Pending", value: "PENDING" },
+    { label: "Failed", value: "FAILED" },
+  ];
+
   return (
     <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-800">Monitoring Transaksi</h1>
+        <h1 className="text-2xl font-bold  text-foreground">Monitoring Transaksi</h1>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 border rounded-lg bg-gray-50">
             <Input
                 placeholder="Cari No. Transaksi/Nasabah..."
@@ -105,24 +120,38 @@ export default function TransactionsMonitoring() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="col-span-2 lg:col-span-6"
             />
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger><SelectValue placeholder="Tipe" /></SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">Semua Tipe</SelectItem>
-                <SelectItem value="DEPOSIT">Deposit</SelectItem>
-                <SelectItem value="WITHDRAWAL">Penarikan</SelectItem>
-                </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="SUCCESS">Success</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="FAILED">Failed</SelectItem>
-                </SelectContent>
-            </Select>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="col-span-2"/>
+            <Combobox
+                options={typeOptions}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                placeholder="Tipe"
+                searchPlaceholder="Cari tipe..."
+                emptyPlaceholder="Tipe tidak ditemukan."
+            />
+            <Combobox
+                options={statusOptions}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                placeholder="Status"
+                searchPlaceholder="Cari status..."
+                emptyPlaceholder="Status tidak ditemukan."
+            />
+            <DatePicker 
+              value={dateFrom} 
+              onChange={setDateFrom} 
+              placeholder="Dari tanggal"
+              className="col-span-1 text-xs"
+              fromYear={2020}
+              toYear={currentYear}
+            />
+            <DatePicker 
+              value={dateTo} 
+              onChange={setDateTo} 
+              placeholder="Sampai tanggal"
+              className="col-span-1 text-xs"
+              fromYear={2020}
+              toYear={currentYear}
+            />
         </div>
 
         {loading ? (
@@ -164,7 +193,7 @@ export default function TransactionsMonitoring() {
                                     <h4 className="font-semibold mb-2 flex items-center"><Archive className="w-4 h-4 mr-2"/>Rincian Sampah</h4>
                                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border-l-2 pl-2 ml-1">
                                         {tx.items.map((item, index) => (
-                                            <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded-md">
+                                            <div key={index} className="flex justify-between items-center p-2 rounded-md">
                                                 <div>
                                                     <p className="font-medium">{item.wasteType.name}</p>
                                                     <p className="text-xs text-gray-500">{formatWeight(item.weight)} @ {formatCurrency(item.wasteType.pricePerKg)}</p>
@@ -179,9 +208,11 @@ export default function TransactionsMonitoring() {
                     }
                 />
               )) : (
-                <div className="text-center py-16 text-gray-500">
-                  <p>Tidak ada transaksi yang cocok dengan filter Anda.</p>
-                </div>
+                <EmptyState
+                  icon={<Search />}
+                  title="Tidak Ada Transaksi"
+                  description="Tidak ada transaksi yang cocok dengan filter yang Anda pilih. Silakan coba ubah filter."
+                />
               )}
             </div>
         )}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 
 interface User {
   id: string;
@@ -61,6 +61,14 @@ export function UserForm({ setIsOpen, onSubmit, initialData, units }: UserFormPr
     onSubmit(dataToSubmit);
   };
 
+  const roleOptions = [
+    { label: "Nasabah", value: "NASABAH" },
+    { label: "Petugas Unit", value: "UNIT" },
+    { label: "Admin", value: "ADMIN" },
+  ];
+
+  const unitOptions = units.map(unit => ({ label: unit.name, value: unit.id }));
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -76,26 +84,26 @@ export function UserForm({ setIsOpen, onSubmit, initialData, units }: UserFormPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <Select value={formData.role} onValueChange={(value: 'ADMIN' | 'UNIT' | 'NASABAH') => setFormData({ ...formData, role: value, unitId: '' })}>
-                <SelectTrigger><SelectValue placeholder="Pilih Role" /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="NASABAH">Nasabah</SelectItem>
-                    <SelectItem value="UNIT">Petugas Unit</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                </SelectContent>
-            </Select>
+            <Combobox
+                options={roleOptions}
+                value={formData.role}
+                onChange={(value) => setFormData({ ...formData, role: value as 'ADMIN' | 'UNIT' | 'NASABAH', unitId: '' })}
+                placeholder="Pilih Role"
+                searchPlaceholder="Cari role..."
+                emptyPlaceholder="Role tidak ditemukan."
+            />
         </div>
           {formData.role === 'UNIT' && (
             <div>
                 <label htmlFor="unitId" className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-                <Select value={formData.unitId} onValueChange={(value) => setFormData({ ...formData, unitId: value })} required={formData.role === 'UNIT'}>
-                    <SelectTrigger><SelectValue placeholder="Pilih Unit" /></SelectTrigger>
-                    <SelectContent>
-                        {units.map(unit => (
-                            <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Combobox
+                    options={unitOptions}
+                    value={formData.unitId}
+                    onChange={(value) => setFormData({ ...formData, unitId: value })}
+                    placeholder="Pilih Unit"
+                    searchPlaceholder="Cari unit..."
+                    emptyPlaceholder="Unit tidak ditemukan."
+                />
             </div>
         )}
       </div>

@@ -21,6 +21,7 @@ export async function getUserFromToken(token: string) {
       where: { id: decoded.userId },
       include: {
         nasabah: true,
+        unit: true, // <-- FIX: Add this line to include unit data
       },
     });
 

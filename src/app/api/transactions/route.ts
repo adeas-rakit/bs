@@ -1,103 +1,146 @@
-import { db } from '@/lib/db'
-import jwt from 'jsonwebtoken'
-import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 function getTokenFromRequest(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
+  const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7)
+    return authHeader.substring(7);
   }
-  return request.cookies.get('token')?.value
+  return request.cookies.get('token')?.value;
 }
 
 async function authenticateUser(request: NextRequest) {
-  const token = getTokenFromRequest(request)
-  if (!token) throw new Error('Token tidak ditemukan')
-  
-  const decoded = jwt.verify(token, JWT_SECRET) as any
+  const token = getTokenFromRequest(request);
+  if (!token) throw new Error('Token tidak ditemukan');
+
+  const decoded = jwt.verify(token, JWT_SECRET) as any;
   const user = await db.user.findUnique({
     where: { id: decoded.userId },
-    include: { unit: true }
-  })
-  
-  if (!user) throw new Error('User tidak ditemukan')
-  return user
+    include: { unit: true },
+  });
+
+  if (!user) throw new Error('User tidak ditemukan');
+  return user;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await authenticateUser(request)
-    
-    const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type')
-    const status = searchParams.get('status')
-    const dateFrom = searchParams.get('dateFrom')
-    const dateTo = searchParams.get('dateTo')
-    const nasabahId = searchParams.get('nasabahId')
+    const user = await authenticateUser(request);
 
-    let where: any = {}
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const status = searchParams.get('status');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const nasabahId = searchParams.get('nasabahId');
+    const search = searchParams.get('search');
     
+    // Pagination parameters (will be null if not provided)
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+
+    let where: any = {};
+
     if (user.role === 'NASABAH') {
       const nasabah = await db.nasabah.findUnique({
-        where: { userId: user.id }
-      })
+        where: { userId: user.id },
+      });
       if (nasabah) {
-        where.nasabahId = nasabah.id
+        where.nasabahId = nasabah.id;
       }
     }
 
-    if (type) where.type = type
-    if (status) where.status = status
-    if (nasabahId) where.nasabahId = nasabahId
+    if (type) where.type = type;
+    if (status) where.status = status;
+    if (nasabahId) where.nasabahId = nasabahId;
 
     if (dateFrom || dateTo) {
-      where.createdAt = {}
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom)
-      if (dateTo) where.createdAt.lte = new Date(dateTo)
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) where.createdAt.lte = new Date(dateTo);
     }
 
-    const transactions = await db.transaction.findMany({
-      where,
-      include: {
-        nasabah: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                phone: true
-              }
-            }
-          }
+    if (search) {
+      where.OR = [
+        { transactionNo: { contains: search } },
+        { nasabah: { user: { name: { contains: search } } } },
+        { nasabah: { user: { phone: { contains: search } } } },
+      ];
+    }
+    
+    const includeClause = {
+      nasabah: {
+        include: {
+          user: {
+            select: {
+              name: true,
+              phone: true,
+            },
+          },
         },
-        unit: {
-          select: {
-            name: true
-          }
-        },
-        user: {
-          select: {
-            name: true
-          }
-        },
-        items: {
-          include: {
-            wasteType: true
-          }
-        }
       },
-      orderBy: { createdAt: 'desc' }
-    })
+      unit: {
+        select: {
+          name: true,
+        },
+      },
+      user: {
+        select: {
+          name: true,
+        },
+      },
+      items: {
+        include: {
+          wasteType: true,
+        },
+      },
+    };
 
-    return NextResponse.json({ transactions })
+    // If pagination params are provided, handle pagination
+    if (pageParam && limitParam) {
+      const page = parseInt(pageParam, 10);
+      const limit = parseInt(limitParam, 10);
+      const skip = (page - 1) * limit;
+
+      const [transactions, totalTransactions] = await db.$transaction([
+        db.transaction.findMany({
+          where,
+          include: includeClause,
+          orderBy: { createdAt: 'desc' },
+          skip: skip,
+          take: limit,
+        }),
+        db.transaction.count({ where }),
+      ]);
+      
+      const totalPages = Math.ceil(totalTransactions / limit);
+
+      return NextResponse.json({
+        transactions,
+        totalPages,
+        totalTransactions,
+      });
+
+    } else {
+      // Original logic: If no pagination, fetch all
+      const transactions = await db.transaction.findMany({
+        where,
+        include: includeClause,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return NextResponse.json({ transactions });
+    }
 
   } catch (error: any) {
-    console.error('Get transactions error:', error)
+    console.error('Get transactions error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: error.message.includes('Token') ? 401 : 500 }
-    )
+    );
   }
 }
 
@@ -164,7 +207,8 @@ export async function POST(request: NextRequest) {
         totalAmount,
         totalWeight,
         notes,
-        status: type === 'WITHDRAWAL' ? 'PENDING' : 'SUCCESS'
+        status: type === 'WITHDRAWAL' ? 'PENDING' : 'SUCCESS',
+        createdById: user.id,
       },
       include: {
         nasabah: {
@@ -200,7 +244,8 @@ export async function POST(request: NextRequest) {
           transactionId: transaction.id,
           wasteTypeId: item.wasteTypeId,
           weight: item.weight,
-          amount: item.weight * wasteType!.pricePerKg
+          amount: item.weight * wasteType!.pricePerKg,
+          createdById: user.id,
         }
       })
     }
@@ -221,7 +266,8 @@ export async function POST(request: NextRequest) {
           unitId, 
           nasabahId, 
           balance: totalAmount, 
-          totalWeight: totalWeight 
+          totalWeight: totalWeight,
+          createdById: user.id
         },
         update: { 
           balance: { increment: totalAmount }, 
@@ -267,10 +313,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Create transaction error:', error)
+    console.error('Create transaction error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: error.message.includes('Token') ? 401 : 500 }
-    )
+    );
   }
 }

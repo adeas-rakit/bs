@@ -1,13 +1,13 @@
-
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Landmark } from 'lucide-react'
+import { Calendar, Landmark, History } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface TransactionHistoryProps {
   transactions: any[]
@@ -38,18 +38,22 @@ export default function TransactionHistory({
             onChange={(e) => setSearchTerm(e.target.value)} 
             className="sm:col-span-2"
           />
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger><SelectValue placeholder="Tipe" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Tipe</SelectItem>
-              <SelectItem value="DEPOSIT">Deposit</SelectItem>
-              <SelectItem value="WITHDRAWAL">Penarikan</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={[
+              { label: "Semua Tipe", value: "all" },
+              { label: "Deposit", value: "DEPOSIT" },
+              { label: "Penarikan", value: "WITHDRAWAL" },
+            ]}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="Tipe"
+            searchPlaceholder="Cari tipe..."
+            emptyPlaceholder="Tipe tidak ditemukan."
+          />
         </div>
         <ScrollArea className="h-[60vh]">
           <div className="space-y-4">
-            {transactions.map((t) => (
+            {transactions.length > 0 ? transactions.map((t) => (
               <Card key={t.id}>
                 <CardContent className="p-4 flex justify-between items-center">
                   <div className="space-y-1">
@@ -63,7 +67,13 @@ export default function TransactionHistory({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              <EmptyState 
+                icon={<History />}
+                title="Tidak Ada Riwayat Transaksi"
+                description="Anda belum memiliki transaksi, atau tidak ada yang cocok dengan filter Anda."
+              />
+            )}
           </div>
         </ScrollArea>
       </CardContent>

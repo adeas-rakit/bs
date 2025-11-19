@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 
 interface Unit {
   id: string
@@ -45,6 +45,11 @@ export function UnitForm({ setIsOpen, onSubmit, initialData }: UnitFormProps) {
     onSubmit(formData)
   }
 
+  const statusOptions = [
+    { label: "Aktif", value: "AKTIF" },
+    { label: "Ditangguhkan", value: "DITANGGUHKAN" },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -63,13 +68,14 @@ export function UnitForm({ setIsOpen, onSubmit, initialData }: UnitFormProps) {
       </div>
       <div>
         <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-        <Select value={formData.status} onValueChange={(value: 'AKTIF' | 'DITANGGUHKAN') => setFormData({ ...formData, status: value })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="AKTIF">Aktif</SelectItem>
-            <SelectItem value="DITANGGUHKAN">Ditangguhkan</SelectItem>
-          </SelectContent>
-        </Select>
+        <Combobox 
+          options={statusOptions}
+          value={formData.status}
+          onChange={(value) => setFormData({ ...formData, status: value as 'AKTIF' | 'DITANGGUHKAN' })}
+          placeholder="Pilih Status"
+          searchPlaceholder="Cari status..."
+          emptyPlaceholder="Status tidak ditemukan."
+        />
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Batal</Button>

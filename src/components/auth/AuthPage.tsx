@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { Combobox } from '@/components/ui/combobox'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, LogIn, UserPlus } from 'lucide-react'
@@ -15,12 +15,13 @@ import { ArrowRight, LogIn, UserPlus } from 'lucide-react'
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [tab, setTab] = useState('login')
-  const { toast } = useToast()
+  const [role, setRole] = useState('NASABAH')
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
+    const loadingToast = toast.loading('Logging in...')
 
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
@@ -39,25 +40,23 @@ export default function AuthPage() {
       if (response.ok) {
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
-        toast({
-          title: "Login Berhasil",
+        toast.success("Login Berhasil", {
+          id: loadingToast,
           description: `Selamat datang kembali, ${data.user.name}!`,
         })
         setTimeout(() => {
           window.location.href = '/'
         }, 1000)
       } else {
-        toast({
-          title: "Login Gagal",
+        toast.error("Login Gagal", {
+          id: loadingToast,
           description: data.error,
-          variant: "destructive",
         })
       }
     } catch (error) {
-      toast({
-        title: "Terjadi Kesalahan",
+      toast.error("Terjadi Kesalahan", {
+        id: loadingToast,
         description: "Silakan coba lagi nanti.",
-        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
@@ -67,13 +66,13 @@ export default function AuthPage() {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
+    const loadingToast = toast.loading('Registering...')
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get('name') as string
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const phone = formData.get('phone') as string
-    const role = formData.get('role') as string
 
     try {
       const response = await fetch('/api/auth/register', {
@@ -88,25 +87,23 @@ export default function AuthPage() {
       if (response.ok) {
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
-        toast({
-          title: "Registrasi Berhasil",
+        toast.success("Registrasi Berhasil", {
+          id: loadingToast,
           description: `Selamat datang, ${data.user.name}!`,
         })
         setTimeout(() => {
           window.location.href = '/'
         }, 1000)
       } else {
-        toast({
-          title: "Registrasi Gagal",
+        toast.error("Registrasi Gagal", {
+          id: loadingToast,
           description: data.error,
-          variant: "destructive",
         })
       }
     } catch (error) {
-      toast({
-        title: "Terjadi Kesalahan",
+      toast.error("Terjadi Kesalahan", {
+        id: loadingToast,
         description: "Silakan coba lagi nanti.",
-        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
@@ -114,13 +111,13 @@ export default function AuthPage() {
   }
 
   const formVariants = {
-    hidden: { opacity: 0, x: -50 },
-    visible: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 50 },
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1  },
+    exit: { opacity: 0,  scale: 0.8 },
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
       <div className="hidden lg:flex flex-col items-center justify-center bg-gradient-to-br from-green-400 to-blue-500 text-white p-12">
         <motion.div
           initial={{ opacity: 0, y: -50 }}
@@ -137,8 +134,8 @@ export default function AuthPage() {
           <CardHeader className="text-center">
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }}>
               <img src="/logo.svg" alt="Bank Sampah Logo" className="w-24 h-24 mx-auto mb-4" />
-              <CardTitle className="text-3xl font-bold text-gray-800">Selamat Datang</CardTitle>
-              <CardDescription className="text-gray-600">Login atau Register untuk memulai</CardDescription>
+              <CardTitle className="text-3xl font-bold  text-foreground">Selamat Datang</CardTitle>
+              <CardDescription className="text-gray-500">Login atau Register untuk memulai</CardDescription>
             </motion.div>
           </CardHeader>
           <CardContent>
@@ -187,15 +184,17 @@ export default function AuthPage() {
                         </div>
                          <div className="space-y-2">
                           <Label htmlFor="reg-role">Jenis Akun</Label>
-                          <Select name="role" defaultValue="NASABAH">
-                            <SelectTrigger className="transition-all duration-300 focus:ring-2 focus:ring-green-500">
-                              <SelectValue placeholder="Pilih jenis akun" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="NASABAH">Nasabah</SelectItem>
-                              <SelectItem value="UNIT">Unit Bank Sampah</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Combobox
+                            options={[
+                              { label: "Nasabah", value: "NASABAH" },
+                              { label: "Unit Bank Sampah", value: "UNIT" },
+                            ]}
+                            value={role}
+                            onChange={setRole}
+                            placeholder="Pilih jenis akun"
+                            searchPlaceholder="Cari jenis akun..."
+                            emptyPlaceholder="Jenis akun tidak ditemukan."
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="reg-password">Password</Label>

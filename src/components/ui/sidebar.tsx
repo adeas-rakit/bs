@@ -3,7 +3,8 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { Button } from '@/components/ui/button'
-import { LogOut, Settings, X, ChevronLeft, Menu } from 'lucide-react'
+import { LogOut, Settings, X, ChevronLeft, Menu, Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/hooks/use-theme'
 
 interface NavItem {
   name: string
@@ -23,6 +24,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, navItems, activeTab, onTabChange, onLogout, isOpen, setIsOpen }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -38,12 +40,12 @@ export default function Sidebar({ user, navItems, activeTab, onTabChange, onLogo
   }, [setIsOpen]);
 
   const NavContent = () => (
-    <div className={"flex flex-col h-full bg-white border-r w-full"}>
-      <div className="p-4 flex items-center justify-between border-b">
+    <div className={"flex flex-col h-full bg-white dark:bg-gray-800 border-r dark:border-gray-700 w-full"}>
+      <div className="p-4 flex items-center justify-between border-b dark:border-gray-700">
          {isOpen && (
             <div className="text-center">
-                <h2 className="text-lg font-semibold text-foreground">{user.name}</h2>
-                <p className="text-xs text-muted-foreground">{user.role}</p>
+                <h2 className="text-lg font-semibold text-foreground dark:text-white">{user.name}</h2>
+                <p className="text-xs text-muted-foreground dark:text-gray-400">{user.role}</p>
             </div>
         )}
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="hidden lg:flex">
@@ -64,10 +66,18 @@ export default function Sidebar({ user, navItems, activeTab, onTabChange, onLogo
           </Button>
         ))}
       </nav>
-      <div className="p-2 border-t space-y-1">
+      <div className="p-2 border-t dark:border-gray-700 space-y-1">
         <Button variant="ghost" className={`w-full text-sm ${isOpen ? 'justify-start' : 'justify-center'}`} title={isOpen ? '' : 'Pengaturan'} onClick={() => onTabChange("settings")}>
           <Settings className={isOpen ? 'mr-3 h-4 w-4' : 'h-5 w-5'} />
           {isOpen && 'Pengaturan'}
+        </Button>
+        <Button variant="ghost" className={`w-full text-sm ${isOpen ? 'justify-start' : 'justify-center'}`} onClick={toggleTheme} title={isOpen ? '' : (theme === 'light' ? 'Dark Mode' : 'Light Mode')}>
+            {theme === 'light' ? (
+                <Moon className={isOpen ? 'mr-3 h-4 w-4' : 'h-5 w-5'} />
+            ) : (
+                <Sun className={isOpen ? 'mr-3 h-4 w-4' : 'h-5 w-5'} />
+            )}
+          {isOpen && (theme === 'light' ? 'Dark Mode' : 'Light Mode')}
         </Button>
         <Button variant="ghost" className={`w-full text-sm text-red-500 hover:text-red-600 ${isOpen ? 'justify-start' : 'justify-center'}`} onClick={onLogout} title={isOpen ? '' : 'Logout'}>
           <LogOut className={isOpen ? 'mr-3 h-4 w-4' : 'h-5 w-5'} />

@@ -1,13 +1,11 @@
-
 'use client';
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatWeight } from '@/lib/utils';
-import { WithdrawalRequestForm } from './WithdrawalRequestForm';
 import { ArrowDownRight } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BalanceCard } from './BalanceCard';
 
 // Prop interfaces
 interface NasabahUnitBalance {
@@ -22,55 +20,104 @@ interface Stats {
   totalWithdrawals: number;
 }
 
+interface WithdrawalRequest {
+    id: string;
+    unitId: string;
+    status: string;
+}
+
 interface DashboardStatsProps {
   overall: Stats;
   byUnit: { [key: string]: Stats & { unitName: string } };
-  units: { id: string; name: string }[];
+  units: { id: string; name: string; }[];
   depositCount: number;
   nasabahUnitBalances: NasabahUnitBalance[];
   handleWithdrawalRequest: (amount: number, unitId: string) => Promise<void>;
+  withdrawalRequests: WithdrawalRequest[];
+  onSwitchToWithdrawals: () => void;
 }
 
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
-export default function DashboardStats({ 
+const colors = [
+  "from-green-500 to-teal-500",
+  "from-blue-500 to-indigo-500",
+  "from-purple-500 to-pink-500",
+  "from-red-500 to-orange-500",
+  "from-yellow-500 to-lime-500",
+];
+
+const generateColor = (index: number) => colors[index % colors.length];
+
+export default function DashboardStats({
   overall,
   byUnit,
-  units,
   depositCount,
   nasabahUnitBalances,
-  handleWithdrawalRequest 
+  handleWithdrawalRequest,
+  withdrawalRequests = [],
+  onSwitchToWithdrawals,
 }: DashboardStatsProps) {
-  const [selectedUnit, setSelectedUnit] = useState('overall');
+  const allBalances = [{ unitId: 'overall', unitName: 'Keseluruhan', balance: overall.balance }, ...nasabahUnitBalances];
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  // Determine which stats to display based on the filter
-  const displayStats = selectedUnit === 'overall' || !byUnit[selectedUnit] ? overall : byUnit[selectedUnit];
+  const handleCardSwipe = () => {
+    setActiveIndex((prev) => (prev + 1) % allBalances.length);
+  };
+
+  const selectedUnitId = allBalances[activeIndex]?.unitId || 'overall';
+  const statsToDisplay = selectedUnitId === 'overall' ? overall : byUnit?.[selectedUnitId] || { balance: 0, totalWeight: 0, totalWithdrawals: 0 };
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <Select onValueChange={setSelectedUnit} defaultValue="overall">
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Unit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="overall">Keseluruhan</SelectItem>
-            {units.map(unit => (
-              <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div variants={itemVariants} className="h-64 flex flex-col justify-center items-center relative">
+          <div className="relative w-full h-full flex justify-center sm:justify-start items-center">
+            {allBalances.map((item, index) => {
+              const stackPosition = (index - activeIndex + allBalances.length) % allBalances.length;
+              if (stackPosition > 2) return null; // Only render top 3 cards
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div variants={itemVariants} className="lg:col-span-2">
-          <Card className="bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-lg h-full">
-            <CardHeader><CardTitle>Saldo Aktif</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold mb-4">{formatCurrency(displayStats.balance)}</p>
-              <WithdrawalRequestForm nasabahUnitBalances={nasabahUnitBalances} onSubmit={handleWithdrawalRequest} />
-            </CardContent>
-          </Card>
+              const hasPendingWithdrawal = withdrawalRequests.some(
+                  (req) => req.unitId === item.unitId && req.status === 'PENDING'
+              );
+
+              return (
+                <motion.div
+                  key={item.unitId}
+                  animate={{
+                    scale: 1 - stackPosition * 0.05,
+                    y: -20 * stackPosition,
+                    zIndex: allBalances.length - stackPosition,
+                    opacity: stackPosition > 2 ? 0 : 1,
+                  }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  drag={stackPosition === 0 ? "y" : false}
+                  dragConstraints={{ top: 0, bottom: 0 }}
+                  dragElastic={0.7}
+                  onDragEnd={(event, { offset, velocity }) => {
+                    if (stackPosition === 0 && (offset.y < -80 || velocity.y < -500)) {
+                      handleCardSwipe();
+                    }
+                  }}
+                  className={`absolute w-full max-w-lg h-56 bg-gradient-to-br ${generateColor(index)} rounded-2xl shadow-xl`}
+                >
+                  <BalanceCard
+                    key={item.unitId} // Add key to ensure re-render
+                    unitId={item.unitId}
+                    unitName={item.unitName}
+                    balance={item.balance}
+                    isOverall={item.unitId === 'overall'}
+                    nasabahUnitBalances={nasabahUnitBalances}
+                    onWithdrawalRequest={(amount, unitId) => handleWithdrawalRequest(amount, unitId || item.unitId)}
+                    onSwitchToWithdrawals={onSwitchToWithdrawals}
+                    color="bg-transparent"
+                    isActive={stackPosition === 0} // Pass isActive prop
+                    hasPendingWithdrawal={hasPendingWithdrawal}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
         </motion.div>
 
         <motion.div variants={itemVariants} className="space-y-4">
@@ -79,8 +126,8 @@ export default function DashboardStats({
               <CardTitle className="text-sm font-medium">Total Sampah</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{formatWeight(displayStats.totalWeight)}</p>
-              {selectedUnit === 'overall' && 
+              <p className="text-2xl font-bold">{formatWeight(statsToDisplay.totalWeight)}</p>
+              {selectedUnitId === 'overall' && 
                 <p className="text-xs text-muted-foreground">dari {depositCount} kali menabung</p>
               }
             </CardContent>
@@ -91,7 +138,7 @@ export default function DashboardStats({
               <ArrowDownRight className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(displayStats.totalWithdrawals)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(statsToDisplay.totalWithdrawals)}</div>
             </CardContent>
           </Card>
         </motion.div>

@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import * as React from "react"
 import {
@@ -15,7 +15,9 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  captionLayout = "label",
+  captionLayout = "dropdown-buttons",
+  fromYear = new Date().getFullYear() - 100,
+  toYear = new Date().getFullYear(),
   buttonVariant = "ghost",
   formatters,
   components,
@@ -35,9 +37,12 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
+      fromYear={fromYear}
+      toYear={toYear}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("default", { month: "long" }),
+        formatYearDropdown: (date) => date.getFullYear(),
         ...formatters,
       }}
       classNames={{

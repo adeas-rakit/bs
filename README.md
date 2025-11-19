@@ -1,100 +1,58 @@
-# 🏦 Bank Sampah - Aplikasi Digital Manajemen Bank Sampah
+# Bank Sampah Digital
 
-Aplikasi modern untuk mengelola bank sampah dengan sistem digital yang efisien dan user-friendly.
+Aplikasi ini adalah platform digital untuk mengelola operasional bank sampah, mengubah sistem konvensional menjadi lebih modern, efisien, dan transparan.
 
-## ✨ Fitur Utama
+## Apa itu Sistem Bank Sampah?
 
-### 🔑 **Autentikasi**
-- Login/Register dengan deteksi otomatis jenis akun
-- JWT token authentication
-- QR Code generation untuk nasabah
+Bank sampah adalah sebuah inisiatif pengelolaan sampah berbasis komunitas dengan konsep seperti perbankan. Warga (disebut "nasabah") menyetorkan sampah anorganik yang sudah dipilah (seperti plastik, kertas, logam) ke sebuah lokasi (disebut "unit"). Sampah tersebut akan ditimbang dan dihargai sesuai jenisnya. Nilai dari sampah tersebut kemudian dimasukkan ke dalam rekening tabungan nasabah.
 
-### 👑 **Admin Dashboard**
-- **Iktisar**: Statistik lengkap (unit, nasabah, transaksi, saldo)
-- **Unit**: CRUD data Unit Bank Sampah
-- **Transaksi**: Monitoring dengan filter (tanggal/bulan/tahun)
-- **Pengguna**: Manajemen user dengan pencarian dan filter
-- **Harga**: CRUD harga sampah terkini
+Tujuan utama dari sistem ini adalah:
+1.  **Mengurangi Sampah**: Mengurangi volume sampah yang berakhir di Tempat Pembuangan Akhir (TPA).
+2.  **Edukasi Lingkungan**: Mendidik masyarakat tentang pentingnya memilah sampah.
+3.  **Nilai Ekonomi**: Memberikan insentif ekonomi kepada masyarakat dari sampah yang mereka kumpulkan.
 
-### 🏢 **Unit Dashboard**
-- **Iktisar**: Statistik dalam scope unit
-- **Nasabah**: Manajemen data nasabah dengan edit status
-- **Menabung**: Pencatatan tabungan dengan QR Scanner
+## Bagaimana Sistem Digital Ini Bekerja?
 
-### 👥 **Nasabah Dashboard**
-- **Iktisar**: Saldo, capaian, dan statistik personal
-- **Transaksi**: Riwayat dengan filter periode
-- **Kartu**: Kartu digital dengan QR Code
+Aplikasi ini mendigitalisasi seluruh proses tersebut dengan tiga peran utama: **Nasabah**, **Unit**, dan **Admin**.
 
-## 🔐 **Akun Demo**
+### 1. Alur Nasabah (Warga Penabung Sampah)
+- **Pendaftaran**: Nasabah mendaftar dan mendapatkan akun digital beserta Kartu Anggota dengan QR Code unik.
+- **Menabung Sampah**: Nasabah datang ke Unit Bank Sampah terdekat membawa sampah yang sudah dipilah.
+- **Pencatatan Transaksi**: Petugas Unit akan memindai (scan) QR Code nasabah, lalu menimbang dan mencatat jenis serta berat sampah yang disetor.
+- **Saldo Bertambah**: Nilai sampah akan otomatis dikonversi menjadi saldo rupiah dan masuk ke akun nasabah.
+- **Monitoring & Penarikan**: Nasabah dapat memantau riwayat transaksi, melihat total saldo, dan mengajukan permintaan penarikan saldo (withdraw) melalui aplikasi.
 
-### **Admin**
-- Email: `admin@banksampah.com`
-- Password: `admin123`
+### 2. Alur Unit (Titik Pengumpul Sampah)
+- **Manajemen Nasabah**: Mengelola data nasabah yang terdaftar di unitnya.
+- **Pencatatan Setoran**: Melakukan proses "menabung" untuk nasabah dengan memindai QR Code dan menginput data sampah. Proses ini menggantikan pencatatan manual di buku.
+- **Approval Penarikan**: Memverifikasi dan menyetujui permintaan penarikan saldo dari nasabah.
+- **Operasional**: Memantau total sampah terkumpul dan statistik operasional lainnya di lingkup unitnya.
 
-### **Unit**
-- Email: `unit.jakarta@banksampah.com`
-- Password: `unit123`
-
-### **Nasabah**
-
-#### Budi Santoso
-- Email: `budi@banksampah.com`
-- Password: `nasabah123`
-- Saldo: Rp150.000
-- Total Sampah: 12.5 kg
-
-#### Siti Nurhaliza
-- Email: `siti@banksampah.com`
-- Password: `nasabah456`
-- Saldo: Rp275.000
-- Total Sampah: 23.8 kg
-
-## 🚀 **Cara Mengakses**
-
-1. **Buka browser**: http://localhost:3000
-2. **Lihat akun demo**: http://localhost:3000/demo-accounts
-3. **Login**: Gunakan akun demo atau register akun baru
-4. **Coba fitur**: Eksplorasi semua fitur sesuai role
-
-## 📱 **UI/UX Features**
-- ✅ Responsive design untuk mobile dan desktop
-- ✅ Bottom navigation dengan Tab yang dinamis
-- ✅ Real-time data update (30 detik)
-- ✅ Toast notifications untuk feedback
-- ✅ Modal/Sheet untuk input form
-- ✅ Compact design tanpa top bar
-- ✅ QR Scanner integration
-- ✅ Auto-refresh data
-
-## 🛠 **Teknologi**
-- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: SQLite
-- **Authentication**: JWT
-- **QR Scanner**: html5-qrcode
-- **Real-time**: Custom hooks dengan polling
-
-## 🔄 **Cara Kerja**
-
-1. **Unit** scan QR Code nasabah untuk identifikasi cepat
-2. **Pencatatan** multiple jenis sampah sekaligus
-3. **Transaksi** tercatat lengkap dengan detail item
-4. **Penarikan** minimal Rp. 50.000 dengan approval Unit
-5. **Real-time update** otomatis untuk semua perubahan data
-
-## 🎯 **Highlight Features**
-
-- **QR Code Scanner**: Integrasi seamless untuk identifikasi nasabah
-- **Real-time Dashboard**: Update otomatis setiap 30 detik
-- **Multi-filter**: Pencarian dan filter berlapis untuk data
-- **Responsive Design**: Optimal untuk mobile dan desktop
-- **Role-based Access**: Akses dinamis sesuai jenis akun
-- **Toast Notifications**: Feedback user-friendly untuk semua aksi
-- **Compact Navigation**: Bottom tabs untuk kemudahan mobile
-- **Data Persistence**: LocalStorage untuk session management
-- **Auto-login**: Dari halaman demo accounts
+### 3. Alur Admin (Pengelola Utama)
+- **Supervision**: Admin memiliki akses penuh untuk memantau seluruh aktivitas sistem.
+- **Manajemen Data Master**: Mengelola data utama seperti daftar semua Unit, Pengguna (Admin, Petugas Unit), dan harga dasar untuk setiap jenis sampah.
+- **Monitoring Transaksi**: Melihat seluruh riwayat transaksi yang terjadi di semua unit.
+- **Analitik**: Mendapatkan gambaran besar (overview) mengenai total nasabah, total saldo beredar, dan volume sampah secara keseluruhan.
 
 ---
 
-**🎉 Aplikasi siap digunakan untuk demo atau implementasi nyata!**
+## ✨ Fitur Unggulan Aplikasi
+
+- **Autentikasi Multi-peran**: Login tunggal yang secara otomatis mengarahkan pengguna ke dashboard sesuai perannya (Admin, Unit, atau Nasabah).
+- **QR Code Scanner**: Mempercepat proses identifikasi nasabah dan pencatatan sampah di Unit.
+- **Dashboard Real-time**: Data statistik di setiap dashboard (Admin, Unit, Nasabah) diperbarui secara otomatis untuk menyajikan informasi terkini.
+- **Manajemen Terpusat**: Kemudahan bagi Admin untuk mengelola unit, pengguna, dan harga sampah dari satu tempat.
+- **Riwayat & Laporan**: Nasabah dan Unit dapat dengan mudah melacak riwayat transaksi dengan filter periode.
+- **Desain Responsif**: Tampilan yang dioptimalkan untuk perangkat mobile maupun desktop.
+
+## 🛠 Teknologi yang Digunakan
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Database**: SQLite
+- **Authentication**: JWT (JSON Web Token)
+- **QR Scanner**: `html5-qrcode`
+
+## 🔐 Akun Demo Untuk Mencoba
+
+### **Set Akun Demo**
+- npx tsx seed-accounts.ts

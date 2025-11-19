@@ -1,7 +1,4 @@
-
 'use client';
-
-import { useState } from 'react';
 import {
   Users,
   TrendingUp,
@@ -16,21 +13,8 @@ import InfoListCard from './InfoListCard';
 import TopNasabahItem from './TopNasabahItem';
 import RecentTransactionItem from './RecentTransactionItem';
 import { formatCurrency, formatWeight } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-
-interface DashboardData {
-  totalNasabah: number;
-  totalTransactions: number;
-  totalDepositAmount: number;
-  totalWithdrawalAmount: number;
-  totalActiveBalance: number;
-  totalWasteCollected: number;
-  topNasabah: {
-    byUnit: any[];
-    overall: any[];
-  };
-  recentTransactions: any[];
-}
+import { UserHeader } from '@/components/ui/user-header';
+import { DashboardData } from '@/types';
 
 interface UnitOverviewProps {
   user: any;
@@ -43,9 +27,6 @@ const cardVariants = {
 };
 
 const UnitOverview = ({ user, dashboardData }: UnitOverviewProps) => {
-  const [topNasabahType, setTopNasabahType] = useState<'byUnit' | 'overall'>(
-    'byUnit',
-  );
 
   return (
     <motion.div
@@ -53,65 +34,51 @@ const UnitOverview = ({ user, dashboardData }: UnitOverviewProps) => {
       initial="hidden"
       animate="visible"
     >
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Dashboard Unit {user.unit?.name}
-        </h1>
-        <p className="text-gray-500">Manajemen operasional unit Anda.</p>
-      </div>
+      <UserHeader user={user} />
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           title="Total Nasabah"
           value={dashboardData.totalNasabah}
           icon={Users}
+          tooltipText="Jumlah nasabah yang terdaftar di unit Anda atau pernah bertransaksi di sini."
         />
         <StatCard
-          title="Transaksi"
+          title="Total Transaksi"
           value={dashboardData.totalTransactions}
           icon={TrendingUp}
+          tooltipText="Jumlah seluruh transaksi (setoran dan penarikan) di unit Anda."
         />
         <StatCard
-          title="Sampah"
+          title="Total Sampah"
           value={formatWeight(dashboardData.totalWasteCollected)}
           icon={Scale}
+          tooltipText="Total berat sampah yang telah disetorkan nasabah ke unit Anda."
         />
         <StatCard
-          title="Pemasukan"
+          title="Total Setoran"
           value={formatCurrency(dashboardData.totalDepositAmount)}
           icon={ArrowUpRight}
           color="text-green-600"
+          tooltipText="Total nominal dari semua setoran sampah di unit Anda."
         />
         <StatCard
-          title="Penarikan"
+          title="Total Penarikan"
           value={formatCurrency(dashboardData.totalWithdrawalAmount)}
           icon={ArrowDownRight}
           color="text-red-600"
+          tooltipText="Total nominal dari semua penarikan saldo yang berhasil di unit Anda."
         />
         <StatCard
-          title="Saldo Aktif"
+          title="Saldo di Unit"
           value={formatCurrency(dashboardData.totalActiveBalance)}
           icon={DollarSign}
           color="text-indigo-600"
+          tooltipText="Total saldo gabungan semua nasabah yang tersimpan di unit Anda."
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <InfoListCard title="Nasabah Teratas">
-          <div className="flex justify-end mb-4">
-            <Button
-              variant={topNasabahType === 'byUnit' ? 'default' : 'outline'}
-              onClick={() => setTopNasabahType('byUnit')}
-              className="mr-2"
-            >
-              By Unit
-            </Button>
-            <Button
-              variant={topNasabahType === 'overall' ? 'default' : 'outline'}
-              onClick={() => setTopNasabahType('overall')}
-            >
-              Overall
-            </Button>
-          </div>
-          {dashboardData.topNasabah[topNasabahType].map((n: any, i: number) => (
+        <InfoListCard title="Nasabah Teratas di Unit Ini">
+          {dashboardData.topNasabah.byUnit.map((n: any, i: number) => (
             <TopNasabahItem key={n.id} nasabah={n} index={i} />
           ))}
         </InfoListCard>

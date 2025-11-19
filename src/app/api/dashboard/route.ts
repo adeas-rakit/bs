@@ -101,13 +101,21 @@ export async function GET(request: NextRequest) {
     } else if (user.role === 'UNIT') {
       const unitId = user.unit!.id;
 
-      const totalNasabah = await db.nasabah.count({
-        where: {
-          user: {
-            unitId,
-          },
-        },
+      const transactions = await db.transaction.findMany({
+        where: { unitId: unitId },
+        select: { nasabahId: true },
+        distinct: ['nasabahId'],
       });
+      const nasabahIdsWithTransactions = transactions.map((t) => t.nasabahId).filter((id) => id !== null) as string[];
+
+      const whereClause = {
+        OR: [
+          { unitId: unitId },
+          { id: { in: nasabahIdsWithTransactions } },
+        ],
+      };
+
+      const totalNasabah = await db.nasabah.count({ where: whereClause });
 
       const totalTransactions = await db.transaction.count({
         where: { unitId },
@@ -123,21 +131,13 @@ export async function GET(request: NextRequest) {
         _sum: { totalAmount: true },
       });
 
-      const totalActiveBalance = await db.nasabah.aggregate({
-        where: {
-          user: {
-            unitId,
-          },
-        },
+      const totalActiveBalance = await db.unitNasabah.aggregate({
+        where: { unitId: unitId },
         _sum: { balance: true },
       });
 
-      const totalWasteCollected = await db.nasabah.aggregate({
-        where: {
-          user: {
-            unitId,
-          },
-        },
+      const totalWasteCollected = await db.unitNasabah.aggregate({
+        where: { unitId: unitId },
         _sum: { totalWeight: true },
       });
 
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
         take: 10,
       });
 
-      const topNasabahIds = topNasabahUnit.map((item) => item.nasabahId);
+      const topNasabahIds = topNasabahUnit.map((item) => item.nasabahId).filter(id => id) as string[];
 
       const topNasabahByUnit = await db.nasabah.findMany({
         where: {
@@ -176,6 +176,7 @@ export async function GET(request: NextRequest) {
       });
 
       const topNasabahOverall = await db.nasabah.findMany({
+        where: whereClause,
         take: 10,
         orderBy: { totalWeight: 'desc' },
         include: {

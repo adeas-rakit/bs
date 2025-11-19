@@ -124,7 +124,7 @@ export default function DemoAccounts() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Akun Demo Bank Sampah</h1>
-          <p className="text-gray-600">Gunakan akun berikut untuk mencoba semua fitur aplikasi</p>
+          <p className="text-gray-500">Gunakan akun berikut untuk mencoba semua fitur aplikasi</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -151,21 +151,21 @@ export default function DemoAccounts() {
                       
                       {account.balance && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Saldo:</span>
+                          <span className="text-gray-500">Saldo:</span>
                           <span className="font-medium text-green-600">{account.balance}</span>
                         </div>
                       )}
                       
                       {account.weight && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Total Sampah:</span>
+                          <span className="text-gray-500">Total Sampah:</span>
                           <span className="font-medium">{account.weight}</span>
                         </div>
                       )}
 
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Email:</span>
+                          <span className="text-sm text-gray-500">Email:</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm">{account.email}</span>
                             <Button
@@ -183,7 +183,7 @@ export default function DemoAccounts() {
                         </div>
                         
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Password:</span>
+                          <span className="text-sm text-gray-500">Password:</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm">
                               {showPasswords ? account.password : '••••••••'}
@@ -223,7 +223,7 @@ export default function DemoAccounts() {
                     </div>
                   ))}
 
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="mt-4 p-3 rounded-lg">
                     <h4 className="font-medium mb-2">Fitur {accountType.type}:</h4>
                     <ul className="text-sm space-y-1">
                       {accountType.accounts[0].features.map((feature, idx) => (

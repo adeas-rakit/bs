@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useMemo, useEffect } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/ui/sidebar';
 import BottomBar from '@/components/ui/bottom-bar';
@@ -12,11 +12,14 @@ import TransactionHistory from '@/components/nasabah/TransactionHistory';
 import WithdrawalHistory from '@/components/nasabah/WithdrawalHistory';
 import DigitalCard from '@/components/nasabah/DigitalCard';
 import AccountSettings from '@/components/nasabah/AccountSettings';
-import { Home, TrendingUp, Landmark, QrCode, Settings } from 'lucide-react';
+import { Home, TrendingUp, Landmark, QrCode, Settings, AlertTriangle } from 'lucide-react';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import PullToRefresh from '@/components/ui/PullToRefresh';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { UserHeader } from '@/components/ui/user-header';
 
-// Interfaces from API
+
 interface Stats {
   balance: number;
   totalWeight: number;
@@ -33,7 +36,7 @@ interface DashboardData {
   byUnit: { [key: string]: UnitStat };
   units: { id: string; name: string }[];
   recentTransactions: any[];
-  depositCount: number; // assuming this is still part of the data
+  depositCount: number;
   nasabahUnitBalances: any[];
 }
 
@@ -51,16 +54,37 @@ interface Transaction {
 interface WithdrawalRequest {
   id: string;
   amount: number;
-  status: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
   transactionId: string | null;
+  unitId: string;
+  unit: { name: string };
 }
+
+const NasabahDashboardSkeleton = () => (
+  <div className="p-4 sm:p-6 lg:p-8">
+    <div className="mb-6">
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <Skeleton className="h-32 rounded-lg" />
+      <Skeleton className="h-32 rounded-lg" />
+      <Skeleton className="h-32 rounded-lg" />
+    </div>
+    <div>
+      <Skeleton className="h-6 w-40 mb-4" />
+      <Skeleton className="h-16 rounded-lg mb-2" />
+      <Skeleton className="h-16 rounded-lg mb-2" />
+      <Skeleton className="h-16 rounded-lg" />
+    </div>
+  </div>
+);
 
 export default function NasabahDashboard({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { data: dashboardData, loading: loadingDashboard, refetch: refetchDashboard } = useRealtimeData<DashboardData>({ endpoint: '/api/dashboard' });
@@ -95,92 +119,129 @@ export default function NasabahDashboard({ user }: { user: any }) {
     window.location.href = '/';
   };
 
-  const handleWithdrawalRequest = async (amount: number, unitId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amount, unitId }),
-      });
+    const handleWithdrawalRequest = async (amount: number, unitId: string) => {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/withdrawals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ amount, unitId }),
+        });
 
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || 'Gagal mengajukan penarikan');
+        const resData = await response.json();
 
-      toast({ title: "Berhasil", description: "Pengajuan penarikan telah dikirim." });
-      await refetchAll();
-      setActiveTab('withdrawals');
-    } catch (error: any) {
-      throw new Error(error.message);
-    }
-  };
+        if (!response.ok) {
+            throw new Error(resData.error || 'Gagal mengajukan penarikan');
+        }
 
-  const navItems = [
+        await refetchAll();
+        setTimeout(() => {
+            setActiveTab('withdrawals');
+        }, 4000); 
+    };
+
+  const navItems = useMemo(() => [
     { name: 'Iktisar', value: 'overview', icon: Home },
     { name: 'Transaksi', value: 'transactions', icon: TrendingUp },
     { name: 'Penarikan', value: 'withdrawals', icon: Landmark },
     { name: 'Kartu Digital', value: 'card', icon: QrCode },
     { name: 'Pengaturan', value: 'settings', icon: Settings },
-  ];
+  ], []);
+
+  const availableNavItems = useMemo(() => {
+    if (user.unitId) {
+      return navItems;
+    }
+    return navItems.filter(item => ['overview', 'card', 'settings'].includes(item.value));
+  }, [user, navItems]);
+
+  useEffect(() => {
+    if (!availableNavItems.find(item => item.value === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, availableNavItems]);
 
   const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.1 } } };
 
-  if (loading && !dashboardData) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-20 h-20 border-8 border-t-green-600 border-gray-200 rounded-full" /></div>;
+  const renderContent = () => {
+    if (loading && !dashboardData && user.unitId) {
+        return <NasabahDashboardSkeleton />;
+    }
+
+    return (
+        <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
+            {activeTab === 'overview' && (
+                <motion.div variants={cardVariants} initial="hidden" animate="visible">
+                    <UserHeader user={user} />
+                    {!user.unitId && (
+                        <Alert variant="default" className="mb-6 bg-yellow-100 border-yellow-400 text-yellow-800">
+                            <AlertTriangle className="h-4 w-4 text-yellow-800" />
+                            <AlertTitle>Aktivasi Akun Diperlukan</AlertTitle>
+                            <AlertDescription>
+                            Untuk mengaktifkan semua fitur, silakan kunjungi unit terdekat dan tunjukkan QR Code dari menu 'Kartu Digital' untuk dipindai oleh petugas.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    {user.unitId && dashboardData ? (
+                        <>
+                            <DashboardStats
+                                overall={dashboardData.overall}
+                                byUnit={dashboardData.byUnit}
+                                units={dashboardData.units}
+                                depositCount={dashboardData.depositCount}
+                                nasabahUnitBalances={dashboardData.nasabahUnitBalances}
+                                handleWithdrawalRequest={handleWithdrawalRequest}
+                                withdrawalRequests={withdrawalRequests}
+                                onSwitchToWithdrawals={() => setActiveTab('withdrawals')}
+                            />
+                            <RecentActivity recentTransactions={dashboardData.recentTransactions} />
+                        </>
+                    ) : !user.unitId ? (
+                        <div className="text-center p-8 bg-gray-100 rounded-lg">
+                            <Home className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">Akun Belum Aktif</h3>
+                            <p className="mt-1 text-sm text-gray-500">Semua fitur akan ditampilkan saat akun telah diaktifkan melalui Unit Bank Sampah Terdekat</p>
+                        </div>
+                    ) : null}
+                </motion.div>
+            )}
+            {activeTab === 'transactions' && (
+                <TransactionHistory
+                transactions={filteredTransactions}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                typeFilter={typeFilter}
+                setTypeFilter={setTypeFilter}
+                />
+            )}
+            {activeTab === 'withdrawals' && (
+                <WithdrawalHistory withdrawalRequests={withdrawalRequests} />
+            )}
+            {activeTab === 'card' && (
+                <DigitalCard
+                user={user}
+                balance={dashboardData?.overall?.balance ?? 0}
+                totalWeight={dashboardData?.overall?.totalWeight ?? 0}
+                />
+            )}
+            {activeTab === 'settings' && <AccountSettings user={user} />}
+            </motion.div>
+        </AnimatePresence>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+    <div className="min-h-screen flex">
+      <Sidebar user={user} navItems={availableNavItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       <main className="flex-1 h-screen overflow-hidden">
         <PullToRefresh onRefresh={refetchAll} loading={loading}>
-          <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
-            <AnimatePresence mode="wait">
-              <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
-                {activeTab === 'overview' && dashboardData && (
-                  <motion.div variants={cardVariants} initial="hidden" animate="visible">
-                    <div className="mb-6">
-                      <h1 className="text-2xl font-bold text-gray-800">Halo, {user.name}!</h1>
-                      <p className="text-gray-500">Selamat datang kembali di dasbor Anda.</p>
-                    </div>
-                    <DashboardStats
-                      overall={dashboardData.overall}
-                      byUnit={dashboardData.byUnit}
-                      units={dashboardData.units}
-                      depositCount={dashboardData.depositCount}
-                      nasabahUnitBalances={dashboardData.nasabahUnitBalances}
-                      handleWithdrawalRequest={handleWithdrawalRequest}
-                    />
-                    <RecentActivity recentTransactions={dashboardData.recentTransactions} />
-                  </motion.div>
-                )}
-                {activeTab === 'transactions' && (
-                  <TransactionHistory
-                    transactions={filteredTransactions}
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    typeFilter={typeFilter}
-                    setTypeFilter={setTypeFilter}
-                  />
-                )}
-                {activeTab === 'withdrawals' && (
-                  <WithdrawalHistory withdrawalRequests={withdrawalRequests} />
-                )}
-                {activeTab === 'card' && dashboardData && (
-                  <DigitalCard
-                    user={user}
-                    balance={dashboardData.overall.balance}
-                    totalWeight={dashboardData.overall.totalWeight}
-                  />
-                )}
-                {activeTab === 'settings' && <AccountSettings user={user} />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+            <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+                {renderContent()}
+            </div>
         </PullToRefresh>
       </main>
-      <BottomBar navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+      <BottomBar navItems={availableNavItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
     </div>
   );
 }

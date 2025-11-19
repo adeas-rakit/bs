@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { LogOut, MoreHorizontal, Menu } from 'lucide-react'
+import { LogOut, MoreHorizontal, Menu, Sun, Moon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 
 interface NavItem {
   name: string
@@ -25,6 +26,7 @@ const MAX_VISIBLE_ITEMS = 3;
 
 export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, onMenuClick }: BottomBarProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   const visibleItems = navItems.slice(0, MAX_VISIBLE_ITEMS);
   const moreItems = navItems.slice(MAX_VISIBLE_ITEMS);
@@ -42,6 +44,10 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
   const handleLogoutClick = () => {
     setIsMoreMenuOpen(false);
     onLogout();
+  }
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
   }
   
   const BarButton = ({ item, isActive }: { item: NavItem, isActive: boolean }) => (
@@ -94,6 +100,24 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
                   <span>{item.name}</span>
                 </Button>
               ))}
+
+              <Button
+                variant="ghost"
+                className="flex items-center justify-start p-4 text-md text-muted-foreground"
+                onClick={toggleTheme}
+              >
+                {theme === 'light' ? (
+                  <>
+                    <Moon className="w-5 h-5 mr-4" />
+                    <span>Mode Gelap</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-5 h-5 mr-4" />
+                    <span>Mode Terang</span>
+                  </>
+                )}
+              </Button>
 
               <Button
                   variant="ghost"

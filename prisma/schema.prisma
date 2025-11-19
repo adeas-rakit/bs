@@ -14,81 +14,94 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  password    String
-  name        String
-  phone       String?
-  role        UserRole @default(NASABAH)
-  status      UserStatus @default(AKTIF)
-  qrCode      String?   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  phone         String?
+  role          UserRole  @default(NASABAH)
+  status        UserStatus @default(AKTIF)
+  qrCode        String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relations
-  unit        Unit?    @relation(fields: [unitId], references: [id])
-  unitId      String?
-  nasabah     Nasabah?
-  transactions Transaction[]
+  unit          Unit?     @relation(fields: [unitId], references: [id])
+  unitId        String?
+  nasabah       Nasabah?
+  transactions  Transaction[]
   approvedWithdrawals WithdrawalRequest[] @relation("ApprovedWithdrawals")
+  createdUnits  Unit[]    @relation("CreatedUnits")
+  createdNasabahs Nasabah[] @relation("CreatedNasabahs")
+  createdWasteTypes WasteType[] @relation("CreatedWasteTypes")
+  createdTransactions Transaction[] @relation("CreatedTransactions")
+  createdTransactionItems TransactionItem[] @relation("CreatedTransactionItems")
+  createdWithdrawalRequests WithdrawalRequest[] @relation("CreatedWithdrawalRequests")
+  createdUnitNasabahs UnitNasabah[] @relation("CreatedUnitNasabahs")
 
   @@map("users")
 }
 
 model Unit {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  address     String
+  id            String    @id @default(cuid())
+  name          String    @unique
+  address       String
   contactPerson String?
-  phone       String
-  status      UnitStatus @default(AKTIF)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  phone         String
+  status        UnitStatus @default(AKTIF)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdById   String
 
   // Relations
-  users       User[]
-  transactions Transaction[]
-  nasabah     Nasabah[]
-  wasteTypes  WasteType[]
-  unitNasabah UnitNasabah[]
+  users         User[]
+  transactions  Transaction[]
+  nasabah       Nasabah[]
+  wasteTypes    WasteType[]
+  unitNasabah   UnitNasabah[]
   withdrawalRequests WithdrawalRequest[]
+  createdBy     User      @relation("CreatedUnits", fields: [createdById], references: [id])
 
   @@map("units")
 }
 
 model Nasabah {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  accountNo   String   @unique
-  balance     Int      @default(0)
-  totalWeight Float    @default(0)
-  depositCount Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  accountNo     String    @unique
+  balance       Int       @default(0)
+  totalWeight   Float     @default(0)
+  depositCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdById   String
 
   // Relations
-  user        User     @relation(fields: [userId], references: [id])
-  unit        Unit?    @relation(fields: [unitId], references: [id])
-  unitId      String?
-  transactions Transaction[]
+  user          User      @relation(fields: [userId], references: [id])
+  unit          Unit?     @relation(fields: [unitId], references: [id])
+  unitId        String?
+  transactions  Transaction[]
   withdrawalRequests WithdrawalRequest[]
-  unitNasabah UnitNasabah[]
+  unitNasabah   UnitNasabah[]
+  createdBy     User      @relation("CreatedNasabahs", fields: [createdById], references: [id])
 
   @@map("nasabah")
 }
 
 model WasteType {
-  id          String   @id @default(cuid())
-  name        String
-  pricePerKg  Int
-  status      WasteStatus @default(AKTIF)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String
+  pricePerKg    Int
+  status        WasteStatus @default(AKTIF)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdById   String
 
   // Relations
   transactionItems TransactionItem[]
-  unit             Unit     @relation(fields: [unitId], references: [id])
-  unitId           String
+  unit          Unit      @relation(fields: [unitId], references: [id])
+  unitId        String
+  createdBy     User      @relation("CreatedWasteTypes", fields: [createdById], references: [id])
 
   @@unique([name, unitId])
   @@map("waste_types")
@@ -106,6 +119,7 @@ model Transaction {
   notes         String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  createdById   String
 
   // Relations
   nasabah       Nasabah          @relation(fields: [nasabahId], references: [id])
@@ -114,21 +128,24 @@ model Transaction {
   userId        String
   items         TransactionItem[]
   withdrawalRequest WithdrawalRequest?
+  createdBy     User             @relation("CreatedTransactions", fields: [createdById], references: [id])
 
   @@map("transactions")
 }
 
 model TransactionItem {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   transactionId String
   wasteTypeId   String
   weight        Float
   amount        Int
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
+  createdById   String
 
   // Relations
   transaction   Transaction @relation(fields: [transactionId], references: [id])
   wasteType     WasteType   @relation(fields: [wasteTypeId], references: [id])
+  createdBy     User        @relation("CreatedTransactionItems", fields: [createdById], references: [id])
 
   @@map("transaction_items")
 }
@@ -138,29 +155,35 @@ model WithdrawalRequest {
   amount        Int
   status        WithdrawalRequestStatus @default(PENDING)
   nasabahId     String
-  unitId        String
+  unitId        String?
   transactionId String?                 @unique
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
   adminId       String?
+  createdById   String
 
   // Relations
   nasabah       Nasabah     @relation(fields: [nasabahId], references: [id])
-  unit          Unit        @relation(fields: [unitId], references: [id])
+  unit          Unit?       @relation(fields: [unitId], references: [id])
   transaction   Transaction?  @relation(fields: [transactionId], references: [id])
   approvedBy    User?       @relation("ApprovedWithdrawals", fields: [adminId], references: [id])
+  createdBy     User        @relation("CreatedWithdrawalRequests", fields: [createdById], references: [id])
 
   @@map("withdrawal_requests")
 }
 
 model UnitNasabah {
-  id        String   @id @default(cuid())
-  unit      Unit     @relation(fields: [unitId], references: [id])
-  unitId    String
-  nasabah   Nasabah  @relation(fields: [nasabahId], references: [id])
-  nasabahId String
-  balance   Int      @default(0)
-  totalWeight Float  @default(0)
+  id            String    @id @default(cuid())
+  unitId        String
+  nasabahId     String
+  balance       Int       @default(0)
+  totalWeight   Float     @default(0)
+  createdById   String
+
+  // Relations
+  unit          Unit      @relation(fields: [unitId], references: [id])
+  nasabah       Nasabah   @relation(fields: [nasabahId], references: [id])
+  createdBy     User      @relation("CreatedUnitNasabahs", fields: [createdById], references: [id])
 
   @@unique([unitId, nasabahId])
   @@map("unit_nasabah")

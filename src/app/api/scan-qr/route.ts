@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/db'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
@@ -28,11 +29,11 @@ async function authenticateUser(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await authenticateUser(request)
+    const unitUser = await authenticateUser(request)
     
-    if (user.role !== 'UNIT') {
+    if (unitUser.role !== 'UNIT' || !unitUser.unit) {
       return NextResponse.json(
-        { error: 'Akses ditolak' },
+        { error: 'Akses ditolak. Hanya user dengan peran UNIT yang bisa melakukan aksi ini.' },
         { status: 403 }
       )
     }
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const nasabah = await db.nasabah.findUnique({
+    let nasabah = await db.nasabah.findUnique({
       where: { accountNo: qrData },
       include: {
         user: {
@@ -75,6 +76,62 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // If nasabah has no unit, associate them with the current unit.
+    if (!nasabah.unitId) {
+      const [updatedNasabah] = await db.$transaction([
+        db.nasabah.update({
+          where: { id: nasabah.id },
+          data: {
+            unit: {
+              connect: { id: unitUser.unit.id }
+            }
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                status: true
+              }
+            },
+            unit: true
+          }
+        }),
+        db.user.update({
+          where: { id: nasabah.userId },
+          data: {
+            unitId: unitUser.unit.id
+          }
+        })
+      ]);
+
+      return NextResponse.json({
+        message: `Nasabah ${updatedNasabah.user.name} berhasil ditambahkan ke unit Anda.`,
+        nasabah: updatedNasabah
+      })
+    } else {
+      // fetch unit data if it exists
+      nasabah = await db.nasabah.findUnique({
+        where: { accountNo: qrData },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              status: true
+            }
+          },
+          unit: true
+        }
+      })
+    }
+    
+    // If nasabah is already registered to a unit, just proceed.
+    // The transaction can be done at any unit.
     return NextResponse.json({
       message: 'QR Code valid',
       nasabah

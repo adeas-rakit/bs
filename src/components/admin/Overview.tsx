@@ -13,6 +13,7 @@ import { InfoCard } from '@/components/ui/InfoCard'
 import { Badge } from '@/components/ui/badge'
 import StatCard from './StatCard';
 import { formatCurrency, formatWeight } from '@/lib/utils'
+import { UserHeader } from '@/components/ui/user-header';
 
 interface DashboardData {
   totalUnits: number
@@ -34,10 +35,7 @@ interface OverviewProps {
 const Overview = ({ user, dashboardData }: OverviewProps) => {
     return (
         <div className="space-y-4">
-            <div>
-                <h1 className="text-xl font-bold text-gray-800">Iktisar</h1>
-                <p className="text-sm text-gray-500">Selamat datang, {user.name}. Pantau semua aktivitas bank sampah.</p>
-            </div>
+            <UserHeader user={user} />
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <StatCard title="Saldo Aktif Nasabah" value={formatCurrency(dashboardData.totalActiveBalance)} icon={DollarSign} />
@@ -53,15 +51,15 @@ const Overview = ({ user, dashboardData }: OverviewProps) => {
                     icon={<Users/>}
                     isCollapsible={true}
                     initialInfo={
-                        <div className="text-sm text-gray-600">Nasabah dengan total deposit sampah terberat.</div>
+                        <div className="text-sm text-gray-500">Nasabah dengan total deposit sampah terberat.</div>
                     }
                     expandedInfo={
                         <div className="space-y-2 pt-2 pr-2 max-h-52 overflow-y-auto">
                             {dashboardData.topNasabah.map((n, i) => (
-                                <div key={n.id} className="flex items-center bg-gray-50 p-2 rounded-lg">
+                                <div key={n.id} className="flex items-center p-2 rounded-lg">
                                     <div className="font-bold mr-3 text-gray-400">#{i+1}</div>
                                     <div className="flex-grow">
-                                        <p className="font-semibold text-gray-800 text-sm">{n.user.name}</p>
+                                        <p className="font-semibold  text-foreground text-sm">{n.user.name}</p>
                                         <p className="text-xs text-muted-foreground">Total: {formatWeight(n.totalWeight)} ({n.depositCount}x)</p>
                                     </div>
                                 </div>
@@ -76,14 +74,14 @@ const Overview = ({ user, dashboardData }: OverviewProps) => {
                     icon={<TrendingUp/>}
                     isCollapsible={true}
                     initialInfo={
-                        <div className="text-sm text-gray-600">Transaksi terbaru di semua unit.</div>
+                        <div className="text-sm text-gray-500">Transaksi terbaru di semua unit.</div>
                     }
                     expandedInfo={
                         <div className="space-y-2 pt-2 pr-2 max-h-52 overflow-y-auto">
                             {dashboardData.recentTransactions.map(t => (
-                                <div key={t.id} className="flex items-center bg-gray-50 p-2 rounded-lg">
+                                <div key={t.id} className="flex items-center p-2 rounded-lg">
                                     <div className="flex-grow">
-                                        <p className="font-semibold text-gray-800 text-xs">{t.transactionNo}</p>
+                                        <p className="font-semibold  text-foreground text-xs">{t.transactionNo}</p>
                                         <p className="text-xs text-muted-foreground">{t.nasabah.user.name}</p>
                                     </div>
                                     <div className="text-right">

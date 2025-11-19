@@ -38,13 +38,21 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
+    const unitId = searchParams.get('unitId')
 
     const where: any = {}
     if (status) where.status = status
 
+    if (user.role === 'UNIT') {
+      where.unitId = user.unitId
+    } else if (user.role === 'ADMIN' && unitId) {
+      where.unitId = unitId
+    }
+
     const wasteTypes = await db.wasteType.findMany({
       where,
       include: {
+        unit: true,
         _count: {
           select: {
             transactionItems: true
@@ -76,11 +84,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, pricePerKg } = await request.json()
+    const { name, pricePerKg, unitId } = await request.json()
 
-    if (!name || !pricePerKg) {
+    if (!name || !pricePerKg || !unitId) {
       return NextResponse.json(
-        { error: 'Nama dan harga per kg diperlukan' },
+        { error: 'Nama, harga per kg dan ID unit diperlukan' },
         { status: 400 }
       )
     }
@@ -88,7 +96,9 @@ export async function POST(request: NextRequest) {
     const wasteType = await db.wasteType.create({
       data: {
         name,
-        pricePerKg
+        pricePerKg,
+        unitId,
+        createdById: user.id,
       }
     })
 

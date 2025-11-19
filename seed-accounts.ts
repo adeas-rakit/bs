@@ -1,6 +1,5 @@
 import { PrismaClient, UserStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import qrcode from 'qrcode'
 
 const db = new PrismaClient()
 
@@ -9,7 +8,7 @@ async function createSeedAccounts() {
     console.log('⏳ Start creating seed accounts...')
 
     // 1. Create ADMIN
-    await db.user.upsert({
+    const admin = await db.user.upsert({
       where: { email: 'admin@bs.id' },
       update: {},
       create: {
@@ -30,8 +29,8 @@ async function createSeedAccounts() {
       create: {
         name: 'Bank Sampah Unit RT 1/1',
         address: 'Jl. Bank Sampah Berhasil',
-        contactPerson: 'Adeas',
         phone: '087654321012',
+        createdBy: { connect: { id: admin.id } },
       },
     })
 
@@ -44,7 +43,7 @@ async function createSeedAccounts() {
         name: 'Unit Setiawan',
         role: 'UNIT',
         status: UserStatus.AKTIF,
-        unitId: unit1.id,
+        unit: { connect: { id: unit1.id } },
       },
     })
 
@@ -68,12 +67,11 @@ async function createSeedAccounts() {
 
     for (const data of nasabahData1) {
       const accountNo = 'NSB' + Date.now().toString().slice(-8) + Math.random().toString().slice(-2)
-      const qrCode = await qrcode.toDataURL(accountNo)
 
       const user = await db.user.upsert({
         where: { email: data.email },
         update: {
-            unitId: unit1.id,
+          unit: { connect: { id: unit1.id } },
         },
         create: {
           email: data.email,
@@ -82,21 +80,22 @@ async function createSeedAccounts() {
           phone: data.phone,
           role: 'NASABAH',
           status: UserStatus.AKTIF,
-          qrCode: qrCode,
-          unitId: unit1.id,
+          qrCode: accountNo,
+          unit: { connect: { id: unit1.id } },
         },
       })
 
       await db.nasabah.upsert({
         where: { userId: user.id },
         update: {
-            unitId: unit1.id,
+          unit: { connect: { id: unit1.id } },
         },
         create: {
           accountNo: accountNo,
           balance: data.initialBalance,
-          userId: user.id,
-          unitId: unit1.id,
+          user: { connect: { id: user.id } },
+          unit: { connect: { id: unit1.id } },
+          createdBy: { connect: { id: admin.id } },
         },
       })
     }
@@ -108,8 +107,8 @@ async function createSeedAccounts() {
       create: {
         name: 'Bank Sampah Unit RT 2/1',
         address: 'Jl. Bank Sampah Sukses',
-        contactPerson: 'Adeas',
         phone: '087654321012',
+        createdBy: { connect: { id: admin.id } },
       },
     })
 
@@ -122,7 +121,7 @@ async function createSeedAccounts() {
         name: 'Unit2 Setiawan',
         role: 'UNIT',
         status: UserStatus.AKTIF,
-        unitId: unit2.id,
+        unit: { connect: { id: unit2.id } },
       },
     })
 
@@ -146,12 +145,11 @@ async function createSeedAccounts() {
 
     for (const data of nasabahData2) {
       const accountNo = 'NSB' + Date.now().toString().slice(-8) + Math.random().toString().slice(-2)
-      const qrCode = await qrcode.toDataURL(accountNo)
 
       const user = await db.user.upsert({
         where: { email: data.email },
         update: {
-            unitId: unit2.id,
+          unit: { connect: { id: unit2.id } },
         },
         create: {
           email: data.email,
@@ -160,32 +158,33 @@ async function createSeedAccounts() {
           phone: data.phone,
           role: 'NASABAH',
           status: UserStatus.AKTIF,
-          qrCode: qrCode,
-          unitId: unit2.id,
+          qrCode: accountNo,
+          unit: { connect: { id: unit2.id } },
         },
       })
 
       await db.nasabah.upsert({
         where: { userId: user.id },
         update: {
-            unitId: unit2.id,
+          unit: { connect: { id: unit2.id } },
         },
         create: {
           accountNo: accountNo,
           balance: data.initialBalance,
-          userId: user.id,
-          unitId: unit2.id,
+          user: { connect: { id: user.id } },
+          unit: { connect: { id: unit2.id } },
+          createdBy: { connect: { id: admin.id } },
         },
       })
     }
 
     // 3. Create Waste Types
     const wasteTypes1 = [
-        { name: 'Plastik', pricePerKg: 2500, unitId: unit1.id },
-        { name: 'Kertas', pricePerKg: 1500, unitId: unit1.id },
-        { name: 'Botol Kaca', pricePerKg: 800, unitId: unit1.id },
-        { name: 'Logam', pricePerKg: 5000, unitId: unit1.id },
-        { name: 'Kardus', pricePerKg: 1200, unitId: unit1.id },
+      { name: 'Plastik', pricePerKg: 2500, unitId: unit1.id },
+      { name: 'Kertas', pricePerKg: 1500, unitId: unit1.id },
+      { name: 'Botol Kaca', pricePerKg: 800, unitId: unit1.id },
+      { name: 'Logam', pricePerKg: 5000, unitId: unit1.id },
+      { name: 'Kardus', pricePerKg: 1200, unitId: unit1.id },
     ];
 
     const wasteTypes2 = [
@@ -197,15 +196,20 @@ async function createSeedAccounts() {
     const allWasteTypes = [...wasteTypes1, ...wasteTypes2];
 
     for (const waste of allWasteTypes) {
-        await db.wasteType.upsert({
-            where: { name_unitId: { name: waste.name, unitId: waste.unitId } },
-            update: { pricePerKg: waste.pricePerKg },
-            create: waste,
-        });
+      await db.wasteType.upsert({
+        where: { name_unitId: { name: waste.name, unitId: waste.unitId } },
+        update: { pricePerKg: waste.pricePerKg },
+        create: {
+            name: waste.name,
+            pricePerKg: waste.pricePerKg,
+            unit: { connect: { id: waste.unitId } },
+            createdBy: { connect: { id: admin.id } },
+        },
+      });
     }
 
     console.log('\n')
-    console.log('✅ Seed accounts created successfully!') 
+    console.log('✅ Seed accounts created successfully!')
   } catch (error) {
     console.error('❌ Error creating seed accounts:', error)
   } finally {

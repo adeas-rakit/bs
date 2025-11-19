@@ -3,6 +3,7 @@
 
 import { motion } from 'framer-motion'
 import { formatCurrency, formatWeight } from '@/lib/utils'
+import { useQRCode } from 'next-qrcode';
 
 interface DigitalCardProps {
   user: any
@@ -11,6 +12,8 @@ interface DigitalCardProps {
 }
 
 export default function DigitalCard({ user, balance, totalWeight }: DigitalCardProps) {
+  const { Canvas } = useQRCode();
+
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center items-center h-full">
       <div className="w-full max-w-md bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl p-6 text-white font-mono relative overflow-hidden">
@@ -18,11 +21,25 @@ export default function DigitalCard({ user, balance, totalWeight }: DigitalCardP
           <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/20 rounded-full filter blur-2xl"></div>
           <div className="relative z-10">
               <div className="flex justify-between items-center mb-4">
-                  <span className="text-2xl font-bold tracking-wider">E-SBM</span>
+                  <span className="text-2xl font-bold tracking-wider">Kartu Nasabah</span>
                   <img src="/logo.svg" alt="Logo" className="w-12 h-12 opacity-80"/>
               </div>
               <div className="text-center my-8">
-                  <img src={user.qrCode} alt="QR Code" className="w-32 h-32 rounded-lg ring-4 ring-white/50 mx-auto" />
+                  <div className="bg-white p-3 inline-block rounded-lg ring-4 ring-white/50">
+                    <Canvas
+                      text={user.qrCode || ''}
+                      options={{
+                        width: 216, // 240px total width - 24px padding
+                        quality: 1,
+                        errorCorrectionLevel: 'L',
+                        margin: 1,
+                        color: {
+                          dark: "#000000",
+                          light: "#FFFFFF",
+                        },
+                      }}
+                    />
+                  </div>
               </div>
               <div className="text-center mb-6">
                   <p className="text-2xl font-bold tracking-wider">{user.name}</p>

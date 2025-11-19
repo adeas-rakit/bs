@@ -24,6 +24,7 @@ import Sidebar from '@/components/ui/sidebar'
 import BottomBar from '@/components/ui/bottom-bar'
 import FloatingAddButton from '@/components/ui/FloatingAddButton';
 import PullToRefresh from '@/components/ui/PullToRefresh';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardData {
   totalUnits: number
@@ -36,6 +37,28 @@ interface DashboardData {
   topNasabah: any[]
   recentTransactions: any[]
 }
+
+const AdminDashboardSkeleton = () => (
+    <div className="p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <Skeleton className="h-6 w-48 mb-4" />
+                <Skeleton className="h-40 rounded-lg" />
+            </div>
+            <div>
+                <Skeleton className="h-6 w-48 mb-4" />
+                <Skeleton className="h-40 rounded-lg" />
+            </div>
+        </div>
+  </div>
+);
+
 
 export default function AdminDashboard({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState('overview')
@@ -63,34 +86,36 @@ export default function AdminDashboard({ user }: { user: any }) {
     await refetch();
   };
 
-  if (loading && !dashboardData) {
+  const renderContent = () => {
+    if (loading && !dashboardData) {
+        return <AdminDashboardSkeleton />;
+    }
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-20 h-20 border-8 border-t-green-600 border-gray-200 rounded-full" />
-      </div>
-    )
+        <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.2 }}>
+                {activeTab === 'overview' && dashboardData && (
+                    <Overview user={user} dashboardData={dashboardData} />
+                )}
+                {activeTab === 'units' && <UnitsManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
+                {activeTab === 'transactions' && <TransactionsMonitoring />}
+                {activeTab === 'users' && <UsersManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
+                {activeTab === 'waste-types' && <WasteTypesManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
+                {activeTab === 'withdrawals' && <WithdrawalRequestsManagement />}
+                {activeTab === 'settings' && <AccountSettings user={user} />}
+            </motion.div>
+        </AnimatePresence>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen flex">
       <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
       <main className="flex-1 overflow-hidden h-screen">
         <PullToRefresh onRefresh={handleRefresh} loading={loading}>
             <div className="p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
-                <AnimatePresence mode="wait">
-                <motion.div key={activeTab} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.2 }}>
-                    {activeTab === 'overview' && dashboardData && (
-                        <Overview user={user} dashboardData={dashboardData} />
-                    )}
-                    {activeTab === 'units' && <UnitsManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
-                    {activeTab === 'transactions' && <TransactionsMonitoring />}
-                    {activeTab === 'users' && <UsersManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
-                    {activeTab === 'waste-types' && <WasteTypesManagement isFormOpen={isFormOpen} setIsFormOpen={setIsFormOpen} />}
-                    {activeTab === 'withdrawals' && <WithdrawalRequestsManagement />}
-                    {activeTab === 'settings' && <AccountSettings user={user} />}
-                </motion.div>
-                </AnimatePresence>
+                {renderContent()}
             </div>
         </PullToRefresh>
       </main>

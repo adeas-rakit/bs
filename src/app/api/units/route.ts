@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             transactions: true,
+            wasteTypes: true, 
           },
         },
       },
@@ -62,12 +63,10 @@ export async function GET(request: NextRequest) {
 
     const unitsWithCounts = await Promise.all(
       units.map(async (unit) => {
-        // 1. Count officers for the unit
         const officersCount = await db.user.count({
           where: { role: 'UNIT', unitId: unit.id },
         });
 
-        // 2. Get Nasabah registered in this unit
         const registeredNasabah = await db.user.findMany({
             where: { role: 'NASABAH', unitId: unit.id },
             select: { id: true },
@@ -75,7 +74,6 @@ export async function GET(request: NextRequest) {
         const registeredNasabahIds = registeredNasabah.map(n => n.id);
         const registeredNasabahCount = registeredNasabahIds.length;
 
-        // 3. Get Nasabah who had transactions in this unit
         const transactionalNasabah = await db.unitNasabah.findMany({
             where: { unitId: unit.id },
             select: { nasabahId: true },
@@ -84,7 +82,6 @@ export async function GET(request: NextRequest) {
         const transactionalNasabahIds = transactionalNasabah.map(n => n.nasabahId);
         const activeNasabahCount = transactionalNasabahIds.length;
         
-        // 4. Calculate total unique Nasabah
         const allNasabahIds = new Set([...registeredNasabahIds, ...transactionalNasabahIds]);
         const totalNasabahCount = allNasabahIds.size;
 
@@ -92,6 +89,7 @@ export async function GET(request: NextRequest) {
           ...unit,
           officersCount,
           transactionsCount: unit._count.transactions,
+          wasteTypesCount: unit._count.wasteTypes, 
           registeredNasabahCount,
           activeNasabahCount,
           totalNasabahCount,
@@ -131,6 +129,7 @@ export async function POST(request: NextRequest) {
         name,
         address,
         phone,
+        createdById: user.id,
       },
     });
 

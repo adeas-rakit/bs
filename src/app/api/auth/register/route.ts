@@ -1,27 +1,20 @@
+
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
-import qrcode from 'qrcode'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, phone, role, unitId } = await request.json()
+    const { email, password, name, phone, role } = await request.json()
 
     if (!email || !password || !name) {
       return NextResponse.json(
         { error: 'Email, password, dan nama diperlukan' },
         { status: 400 }
       )
-    }
-
-    if (role === 'NASABAH' && !unitId) {
-        return NextResponse.json(
-            { error: 'ID Unit diperlukan untuk mendaftarkan nasabah' },
-            { status: 400 }
-        );
     }
 
     const existingUser = await db.user.findUnique({
@@ -37,12 +30,12 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    let qrCode = null
-    let accountNo = null
+    let qrCode = ""
+    let accountNo = ""
 
     if (role === 'NASABAH') {
-      accountNo = 'NSB' + Date.now().toString().slice(-8)
-      qrCode = await qrcode.toDataURL(accountNo)
+      accountNo = 'NSB' + Date.now().toString().slice(-8) + Math.random().toString().slice(-2)
+      qrCode = accountNo
     }
 
     const user = await db.user.create({
@@ -53,7 +46,8 @@ export async function POST(request: NextRequest) {
         phone,
         role: role || 'NASABAH',
         qrCode,
-        unitId: role === 'NASABAH' ? unitId : null,
+        // ID Unit tidak diwajibkan saat registrasi, akan diisi nanti
+        unitId: null,
       },
       include: {
         unit: true,
@@ -68,22 +62,24 @@ export async function POST(request: NextRequest) {
           user: {
             connect: { id: user.id }
           },
-          unit: {
-            connect: { id: unitId }
+          // Relasi ke unit akan diisi saat scan QR pertama kali
+          createdBy: { 
+            connect: { id: user.id } 
           }
         }
       })
 
       user.nasabah = await db.nasabah.findUnique({
-        where: { userId: user.id }
+        where: { userId: user.id },
+        include: { unit: true }
       })
     }
 
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -92,7 +88,7 @@ export async function POST(request: NextRequest) {
     const { password: _, ...userWithoutPassword } = user
 
     return NextResponse.json({
-      message: 'Registrasi berhasil',
+      message: 'Registrasi berhasil. Akun Anda akan dihubungkan dengan Unit Bank Sampah saat transaksi pertama.',
       user: userWithoutPassword,
       token
     })

@@ -2,14 +2,13 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Shield, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function AccountSettings({ user }: { user: any }) {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -23,7 +22,7 @@ export default function AccountSettings({ user }: { user: any }) {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Proses...", description: "Memperbarui profil Anda." });
+    const loadingToast = toast.loading("Memperbarui profil Anda.");
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/user/profile', {
@@ -35,30 +34,19 @@ export default function AccountSettings({ user }: { user: any }) {
       if (!response.ok) {
         throw new Error(data.message || 'Gagal memperbarui profil.');
       }
-      toast({
-        title: "Berhasil",
-        description: "Profil Anda telah berhasil diperbarui.",
-      });
+      toast.success("Berhasil", { id: loadingToast, description: "Profil Anda telah berhasil diperbarui." });
     } catch (error: any) {
-      toast({
-        title: "Gagal",
-        description: error.message || "Gagal memperbarui profil. Silakan coba lagi.",
-        variant: "destructive",
-      });
+      toast.error("Gagal", { id: loadingToast, description: error.message || "Gagal memperbarui profil. Silakan coba lagi." });
     }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast({
-        title: "Gagal",
-        description: "Kata sandi baru tidak cocok.",
-        variant: "destructive",
-      });
+      toast.error("Gagal", { description: "Kata sandi baru tidak cocok." });
       return;
     }
-    toast({ title: "Proses...", description: "Mengubah kata sandi Anda." });
+    const loadingToast = toast.loading("Mengubah kata sandi Anda.");
     try {
         const token = localStorage.getItem('token');
         const response = await fetch('/api/user/profile', {
@@ -70,28 +58,21 @@ export default function AccountSettings({ user }: { user: any }) {
         if (!response.ok) {
             throw new Error(data.message || 'Gagal mengubah kata sandi.');
         }
-        toast({
-            title: "Berhasil",
-            description: "Kata sandi Anda telah berhasil diubah.",
-        });
+        toast.success("Berhasil", { id: loadingToast, description: "Kata sandi Anda telah berhasil diubah." });
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
     } catch (error: any) {
-      toast({
-        title: "Gagal",
-        description: error.message || "Gagal mengubah kata sandi. Silakan coba lagi.",
-        variant: "destructive",
-      });
+      toast.error("Gagal", { id: loadingToast, description: error.message || "Gagal mengubah kata sandi. Silakan coba lagi." });
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Pengaturan Akun</h1>
+        <h1 className="text-2xl font-bold  text-foreground">Pengaturan Akun</h1>
         <p className="text-gray-500">
-          Kelola informasi profil dan keamanan akun Anda.
+          Kelola profil dan keamanan akun Anda.
         </p>
       </div>
 

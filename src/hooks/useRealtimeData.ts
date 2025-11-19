@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 interface UseRealtimeDataProps {
   endpoint: string
@@ -12,7 +12,8 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(endpoint, {
@@ -33,7 +34,7 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
     } finally {
       setLoading(false)
     }
-  }
+  }, [endpoint])
 
   useEffect(() => {
     fetchData()
@@ -42,12 +43,12 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
       const interval = setInterval(fetchData, refreshInterval)
       return () => clearInterval(interval)
     }
-  }, [endpoint, refreshInterval])
+  }, [fetchData, refreshInterval])
 
-  const refetch = () => {
-    setLoading(true)
-    fetchData()
-  }
+  const refetch = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   return { data, loading, error, refetch }
 }

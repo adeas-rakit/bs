@@ -40,7 +40,7 @@ export const InfoCard = ({
       <CardHeader className={`p-4 ${isCollapsible ? 'cursor-pointer' : ''}`} onClick={handleToggle}>
         <div className="flex items-center justify-between">
             <div className="flex items-center">
-                <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                <div className="flex-shrink-0 w-12 h-12 border rounded-full flex items-center justify-center mr-4">
                     {icon}
                 </div>
                 <div>

@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
                     totalWeight: 0,
                     status: 'SUCCESS',
                     notes: `Penarikan dana sebesar ${withdrawalRequest.amount}`,
+                    createdById: admin.id,
                 },
             });
 
