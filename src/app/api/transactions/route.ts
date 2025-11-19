@@ -38,13 +38,20 @@ export async function GET(request: NextRequest) {
     const nasabahId = searchParams.get('nasabahId');
     const search = searchParams.get('search');
     
-    // Pagination parameters (will be null if not provided)
     const pageParam = searchParams.get('page');
     const limitParam = searchParams.get('limit');
 
     let where: any = {};
 
-    if (user.role === 'NASABAH') {
+    if (user.role === 'UNIT') {
+      if (!user.unit) {
+        return NextResponse.json(
+          { error: 'User tidak terhubung dengan unit manapun' },
+          { status: 400 }
+        );
+      }
+      where.unitId = user.unit.id;
+    } else if (user.role === 'NASABAH') {
       const nasabah = await db.nasabah.findUnique({
         where: { userId: user.id },
       });
@@ -99,7 +106,6 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // If pagination params are provided, handle pagination
     if (pageParam && limitParam) {
       const page = parseInt(pageParam, 10);
       const limit = parseInt(limitParam, 10);
@@ -125,7 +131,6 @@ export async function GET(request: NextRequest) {
       });
 
     } else {
-      // Original logic: If no pagination, fetch all
       const transactions = await db.transaction.findMany({
         where,
         include: includeClause,

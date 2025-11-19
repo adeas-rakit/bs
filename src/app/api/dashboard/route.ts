@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
@@ -101,21 +100,7 @@ export async function GET(request: NextRequest) {
     } else if (user.role === 'UNIT') {
       const unitId = user.unit!.id;
 
-      const transactions = await db.transaction.findMany({
-        where: { unitId: unitId },
-        select: { nasabahId: true },
-        distinct: ['nasabahId'],
-      });
-      const nasabahIdsWithTransactions = transactions.map((t) => t.nasabahId).filter((id) => id !== null) as string[];
-
-      const whereClause = {
-        OR: [
-          { unitId: unitId },
-          { id: { in: nasabahIdsWithTransactions } },
-        ],
-      };
-
-      const totalNasabah = await db.nasabah.count({ where: whereClause });
+      const totalNasabah = await db.unitNasabah.count({ where: { unitId: unitId } });
 
       const totalTransactions = await db.transaction.count({
         where: { unitId },
@@ -141,52 +126,26 @@ export async function GET(request: NextRequest) {
         _sum: { totalWeight: true },
       });
 
-      const topNasabahUnit = await db.transaction.groupBy({
-        by: ['nasabahId'],
+      const topNasabahInUnit = await db.unitNasabah.findMany({
         where: {
           unitId: unitId,
         },
-        _sum: {
-          totalAmount: true,
-        },
         orderBy: {
-          _sum: {
-            totalAmount: 'desc',
-          },
+          totalWeight: 'desc',
         },
         take: 10,
-      });
-
-      const topNasabahIds = topNasabahUnit.map((item) => item.nasabahId).filter(id => id) as string[];
-
-      const topNasabahByUnit = await db.nasabah.findMany({
-        where: {
-          id: {
-            in: topNasabahIds,
-          },
-        },
         include: {
-          user: {
-            select: {
-              name: true,
-              phone: true,
-            },
-          },
-        },
-      });
-
-      const topNasabahOverall = await db.nasabah.findMany({
-        where: whereClause,
-        take: 10,
-        orderBy: { totalWeight: 'desc' },
-        include: {
-          user: {
-            select: {
-              name: true,
-              phone: true,
-            },
-          },
-        },
+            nasabah: {
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            phone: true,
+                        }
+                    }
+                }
+            }
+        }
       });
 
       const recentTransactions = await db.transaction.findMany({
@@ -214,10 +173,7 @@ export async function GET(request: NextRequest) {
           totalWithdrawalAmount._sum.totalAmount || 0,
         totalActiveBalance: totalActiveBalance._sum.balance || 0,
         totalWasteCollected: totalWasteCollected._sum.totalWeight || 0,
-        topNasabah: {
-          byUnit: topNasabahByUnit,
-          overall: topNasabahOverall,
-        },
+        topNasabah: { byUnit: topNasabahInUnit.map(un => un.nasabah) },
         recentTransactions,
       };
     } else if (user.role === 'NASABAH') {
