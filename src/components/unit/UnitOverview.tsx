@@ -33,8 +33,7 @@ const UnitOverview = ({ user, dashboardData }: UnitOverviewProps) => {
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-    >
-      <UserHeader user={user} />
+    > 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           title="Total Nasabah"

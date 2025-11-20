@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const withdrawals = await db.withdrawalRequest.findMany({
       where: {
         unitId: user.unit.id,
+        status: 'PENDING',
       },
       include: {
         nasabah: {

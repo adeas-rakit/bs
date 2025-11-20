@@ -1,146 +1,180 @@
+import { db } from '@/lib/db';
+import { UserStatus } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { db } from '@/lib/db'
-import { UserStatus } from '@prisma/client'
-import jwt from 'jsonwebtoken'
-import { NextRequest, NextResponse } from 'next/server'
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 function getTokenFromRequest(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
+  const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7)
+    return authHeader.substring(7);
   }
-  return request.cookies.get('token')?.value
+  return request.cookies.get('token')?.value;
 }
 
 async function authenticateUser(request: NextRequest) {
-  const token = getTokenFromRequest(request)
-  if (!token) throw new Error('Token tidak ditemukan')
-  
-  const decoded = jwt.verify(token, JWT_SECRET) as any
+  const token = getTokenFromRequest(request);
+  if (!token) throw new Error('Token tidak ditemukan');
+
+  const decoded = jwt.verify(token, JWT_SECRET) as any;
   const user = await db.user.findUnique({
     where: { id: decoded.userId },
-    include: { unit: true }
-  })
-  
-  if (!user) throw new Error('User tidak ditemukan')
-  return user
+    include: { unit: true },
+  });
+
+  if (!user) throw new Error('User tidak ditemukan');
+  return user;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await authenticateUser(request)
+    const user = await authenticateUser(request);
 
     if (user.role !== 'ADMIN' && user.role !== 'UNIT') {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
-    
-    const { searchParams } = new URL(request.url)
-    const statusParam = searchParams.get('status')
-    const search = searchParams.get('search')
 
-    let where: any = {};
-    let andConditions: any[] = [];
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get('status');
+    const search = searchParams.get('search');
 
     if (user.role === 'UNIT' && user.unitId) {
-      const transactions = await db.transaction.findMany({
-        where: { unitId: user.unitId },
-        select: { nasabahId: true },
-        distinct: ['nasabahId'],
-      });
-      const nasabahIdsWithTransactions = transactions.map((t) => t.nasabahId!);
+      let nasabahFilter: any = {};
+      const andConditions: any[] = [];
 
-      where.OR = [
-        { unitId: user.unitId },
-        { id: { in: nasabahIdsWithTransactions } },
-      ];
-    }
-
-    if (statusParam) {
-      if (Object.values(UserStatus).includes(statusParam as UserStatus)) {
+      if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
         andConditions.push({ user: { status: statusParam as UserStatus } });
-      } else {
-        return NextResponse.json({ error: 'Status tidak valid' }, { status: 400 });
       }
-    }
 
-    if (search) {
-      andConditions.push({
-        OR: [
-          { user: { name: { contains: search } } },
-          { accountNo: { contains: search } },
-          { user: { phone: { contains: search } } }
-        ]
-      });
-    }
+      if (search) {
+        andConditions.push({
+          OR: [
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+            { accountNo: { contains: search, mode: 'insensitive' } },
+            { user: { phone: { contains: search, mode: 'insensitive' } } },
+          ],
+        });
+      }
 
-    if (andConditions.length > 0) {
-      where = { AND: [where, ...andConditions] };
-    }
+      if (andConditions.length > 0) {
+        nasabahFilter.AND = andConditions;
+      }
 
-    const nasabah = await db.nasabah.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            status: true,
-            createdAt: true,
-            unitId: true
-          }
+      const unitNasabahLinks = await db.unitNasabah.findMany({
+        where: {
+          unitId: user.unitId,
+          nasabah: nasabahFilter,
         },
-        unit: {
-          select: {
-            id: true,
-            name: true,
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    if (user.role === 'UNIT' && user.unitId) {
-      const unitNasabahData = await db.unitNasabah.findMany({
-          where: {
-              unitId: user.unitId,
-              nasabahId: { in: nasabah.map(n => n.id) }
+        include: {
+          nasabah: {
+            include: {
+              user: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true, unitId: true } },
+              unit: { select: { id: true, name: true } },
+            },
           },
-          select: {
-              nasabahId: true,
-              balance: true,
-              totalWeight: true,
-          }
+        },
+        orderBy: { nasabah: { createdAt: 'desc' } },
       });
 
-      const unitNasabahMap = unitNasabahData.reduce((acc, curr) => {
-          acc[curr.nasabahId] = { balance: curr.balance, totalWeight: curr.totalWeight };
-          return acc;
-      }, {} as Record<string, { balance: number, totalWeight: number }>);
-
-      const adjustedNasabah = nasabah.map(n => {
-          const unitData = unitNasabahMap[n.id];
-          return {
-              ...n,
-              balance: unitData?.balance ?? 0,
-              totalWeight: unitData?.totalWeight ?? 0,
-          };
+      const nasabahIds = unitNasabahLinks.map(link => link.nasabahId);
+      const depositCounts = await db.transaction.groupBy({
+        by: ['nasabahId'],
+        where: { nasabahId: { in: nasabahIds }, unitId: user.unitId, type: 'DEPOSIT' },
+        _count: { id: true },
       });
 
-      return NextResponse.json({ nasabah: adjustedNasabah });
+      const depositCountMap = depositCounts.reduce((acc, curr) => {
+        acc[curr.nasabahId] = curr._count.id;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const nasabahList = unitNasabahLinks.map(link => ({
+        ...link.nasabah,
+        balance: link.balance,
+        totalWeight: link.totalWeight,
+        depositCount: depositCountMap[link.nasabahId] || 0,
+      }));
+
+      return NextResponse.json({ nasabah: nasabahList });
+    } else {
+      let where: any = {};
+      const andConditions: any[] = [];
+
+      if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
+        andConditions.push({ user: { status: statusParam as UserStatus } });
+      }
+
+      if (search) {
+        andConditions.push({
+          OR: [
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+            { accountNo: { contains: search, mode: 'insensitive' } },
+            { user: { phone: { contains: search, mode: 'insensitive' } } },
+          ],
+        });
+      }
+
+      if (andConditions.length > 0) {
+        where.AND = andConditions;
+      }
+
+      const nasabah = await db.nasabah.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true, unitId: true } },
+          unit: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const nasabahIds = nasabah.map(n => n.id);
+
+      const [depositsByUnit, allUnits] = await Promise.all([
+        db.transaction.groupBy({
+            by: ['nasabahId', 'unitId'],
+            where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
+            _count: { id: true },
+        }),
+        db.unit.findMany({ select: { id: true, name: true } })
+      ]);
+
+      const unitMap = allUnits.reduce((acc, unit) => {
+        acc[unit.id] = unit.name;
+        return acc;
+      }, {} as Record<string, string>);
+
+      const depositStatsMap = nasabahIds.reduce((acc, id) => {
+        acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
+        return acc;
+      }, {} as Record<string, { totalDepositCount: number, depositsByUnit: any[] }>);
+
+      depositsByUnit.forEach(group => {
+        if (group.nasabahId && group.unitId) {
+          const nasabahStat = depositStatsMap[group.nasabahId];
+          const count = group._count.id;
+          nasabahStat.totalDepositCount += count;
+          nasabahStat.depositsByUnit.push({
+            unitId: group.unitId,
+            unitName: unitMap[group.unitId] || 'Unknown Unit',
+            count: count,
+          });
+        }
+      });
+
+      const augmentedNasabah = nasabah.map(n => ({
+        ...n,
+        ...(depositStatsMap[n.id] || { totalDepositCount: 0, depositsByUnit: [] }),
+      }));
+
+      return NextResponse.json({ nasabah: augmentedNasabah });
     }
-
-    return NextResponse.json({ nasabah })
-
   } catch (error: any) {
-    console.error('Get nasabah error:', error)
+    console.error('Get nasabah error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: error.message.includes('Token') ? 401 : 500 }
-    )
+    );
   }
 }
 

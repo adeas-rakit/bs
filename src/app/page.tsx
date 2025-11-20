@@ -6,6 +6,7 @@ import AuthPage from '@/components/auth/AuthPage'
 import AdminDashboard from '@/components/dashboard/AdminDashboard'
 import UnitDashboard from '@/components/dashboard/UnitDashboard'
 import NasabahDashboard from '@/components/dashboard/NasabahDashboard'
+import { TabProvider } from '@/context/TabContext';
 import { motion, AnimatePresence } from 'framer-motion'
 import Loading from '@/components/ui/Loading'
 
@@ -94,16 +95,26 @@ export default function Home() {
   const renderDashboard = () => {
     if (!user) return <AuthPage />;
 
+    let dashboardComponent;
     switch (user.role) {
       case 'ADMIN':
-        return <AdminDashboard user={user} />;
+        dashboardComponent = <AdminDashboard user={user} />;
+        break;
       case 'UNIT':
-        return <UnitDashboard user={user} />;
+        dashboardComponent = <UnitDashboard user={user} />;
+        break;
       case 'NASABAH':
-        return <NasabahDashboard user={user} />;
+        dashboardComponent = <NasabahDashboard user={user} />;
+        break;
       default:
         return <AuthPage />;
     }
+
+    return (
+      <TabProvider>
+        {dashboardComponent}
+      </TabProvider>
+    );
   }
 
   if (loading) {

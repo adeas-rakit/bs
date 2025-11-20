@@ -160,7 +160,7 @@ export default function WithdrawalManagement({ onUpdate }: WithdrawalManagementP
         <p className="text-gray-500">Setujui atau tolak permintaan penarikan dari nasabah yang pernah menabung di unit Anda.</p>
       </div>
       <ScrollArea className="h-[60vh]">
-        <div className="space-y-4 pr-4">
+        <div className="space-y-4">
           {requests.length > 0 ? requests.map((request) => (
             <Card key={request.id}>
               <CardContent className="p-4 flex justify-between items-center">
@@ -168,7 +168,6 @@ export default function WithdrawalManagement({ onUpdate }: WithdrawalManagementP
                     <span className="font-semibold flex items-center gap-2"><User className="h-5 w-5 text-green-600"/>{request.nasabah.user.name}</span>
                     <p className="text-sm text-gray-500">No. Rek: {request.nasabah.accountNo}</p>
                     <div className="text-sm  text-foreground font-bold flex items-center gap-2">
-                        <DollarSign className="h-4 w-4"/>
                         <span>{formatCurrency(request.amount)}</span>
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-2">

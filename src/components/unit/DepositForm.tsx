@@ -44,7 +44,7 @@ interface Nasabah {
 }
 
 interface DepositFormProps {
-  onSuccess: () => void
+  onSuccess: (transactionId: string) => void
 }
 
 const NasabahSelectionSkeleton = () => (
@@ -247,13 +247,14 @@ export default function DepositForm({ onSuccess }: DepositFormProps) {
       })
       
       if (response.ok) {
+        const data = await response.json();
         toast.success("Berhasil", {
           id: loadingToast,
           description: "Tabungan berhasil dicatat",
         })
         setSelectedNasabah(null)
         setDepositItems([])
-        onSuccess()
+        onSuccess(data.transaction.id)
       } else {
         const data = await response.json()
         toast.error("Error", {

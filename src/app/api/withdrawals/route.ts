@@ -17,21 +17,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akun nasabah tidak ditemukan' }, { status: 403 })
     }
 
+    // Handle pagination
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const skip = (page - 1) * limit;
+
+    const whereClause = {
+      nasabahId: user.nasabah.id, 
+    };
+
+    // Fetch total count for pagination
+    const totalWithdrawals = await db.withdrawalRequest.count({ where: whereClause });
+    const totalPages = Math.ceil(totalWithdrawals / limit);
+
     const withdrawals = await db.withdrawalRequest.findMany({
-      where: {
-        nasabahId: user.nasabah.id, // Fetch based on the logged-in user's nasabah ID
-      },
+      where: whereClause,
       include: {
-        unit: { // Include unit name for context
+        unit: { 
           select: { name: true },
         },
       },
       orderBy: {
-        createdAt: 'desc', // Show the most recent withdrawals first
+        createdAt: 'desc',
       },
+      skip: skip,
+      take: limit,
     })
 
-    return NextResponse.json({ withdrawals })
+    return NextResponse.json({
+      withdrawals,
+      currentPage: page,
+      totalPages: totalPages,
+    });
   } catch (error: any) {
     console.error('Get withdrawal history error:', error)
     return NextResponse.json(

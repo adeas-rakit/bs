@@ -10,6 +10,7 @@ interface NavItem {
   name: string
   value: string
   icon: React.ElementType
+  hidden?: boolean
 }
 
 interface SidebarProps {
@@ -53,7 +54,7 @@ export default function Sidebar({ user, navItems, activeTab, onTabChange, onLogo
         </Button>
       </div>
       <nav className="flex-1 p-2 space-y-1">
-        {navItems.map((item) => (
+        {navItems.filter(item => !item.hidden).map((item) => (
           <Button
             key={item.value}
             variant={activeTab === item.value ? 'secondary' : 'ghost'}

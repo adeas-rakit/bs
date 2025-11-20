@@ -1,3 +1,4 @@
+
 import { db } from "./db";
 import jwt from 'jsonwebtoken';
 
@@ -17,11 +18,20 @@ export async function getUserFromToken(token: string) {
       return null;
     }
 
+    // Mengganti 'include' dengan 'select' untuk memastikan semua field yang diperlukan
+    // ada dalam tipe data yang dikembalikan, termasuk 'notificationsLastReadAt'.
+    // Ini memperbaiki peringatan TypeScript di seluruh aplikasi.
     const user = await db.user.findUnique({
       where: { id: decoded.userId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        unitId: true,
+        notificationsLastReadAt: true, // <-- FIX: Explicitly select the field
         nasabah: true,
-        unit: true, // <-- FIX: Add this line to include unit data
+        unit: true,
       },
     });
 

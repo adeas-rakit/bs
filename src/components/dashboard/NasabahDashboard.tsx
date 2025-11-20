@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/ui/sidebar';
 import BottomBar from '@/components/ui/bottom-bar';
@@ -10,15 +8,16 @@ import DashboardStats from '@/components/nasabah/DashboardStats';
 import RecentActivity from '@/components/nasabah/RecentActivity';
 import TransactionHistory from '@/components/nasabah/TransactionHistory';
 import WithdrawalHistory from '@/components/nasabah/WithdrawalHistory';
+import NotificationHistory from '@/components/common/NotificationHistory';
 import DigitalCard from '@/components/nasabah/DigitalCard';
 import AccountSettings from '@/components/nasabah/AccountSettings';
-import { Home, TrendingUp, Landmark, QrCode, Settings, AlertTriangle } from 'lucide-react';
+import { Home, TrendingUp, Landmark, QrCode, Settings, AlertTriangle, Bell } from 'lucide-react';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import PullToRefresh from '@/components/ui/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserHeader } from '@/components/ui/user-header';
-
+import { useTabContext } from '@/context/TabContext';
 
 interface Stats {
   balance: number;
@@ -40,17 +39,6 @@ interface DashboardData {
   nasabahUnitBalances: any[];
 }
 
-interface Transaction {
-  id: string;
-  transactionNo: string;
-  type: string;
-  totalAmount: number;
-  totalWeight: number;
-  status: string;
-  createdAt: string;
-  unit: { name: string };
-}
-
 interface WithdrawalRequest {
   id: string;
   amount: number;
@@ -59,6 +47,13 @@ interface WithdrawalRequest {
   transactionId: string | null;
   unitId: string;
   unit: { name: string };
+}
+
+interface User {
+  id: string;
+  name: string;
+  unitId?: string | null;
+  role: 'NASABAH' | 'UNIT' | 'ADMIN';
 }
 
 const NasabahDashboardSkeleton = () => (
@@ -81,37 +76,22 @@ const NasabahDashboardSkeleton = () => (
   </div>
 );
 
-export default function NasabahDashboard({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
+export default function NasabahDashboard({ user }: { user: User | null }) {
+  const { activeTab, setActiveTab } = useTabContext();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { data: dashboardData, loading: loadingDashboard, refetch: refetchDashboard } = useRealtimeData<DashboardData>({ endpoint: '/api/dashboard' });
-  const { data: transactionsData, loading: loadingTransactions, refetch: refetchTransactions } = useRealtimeData<{ transactions: Transaction[] }>({ endpoint: '/api/transactions' });
   const { data: withdrawalsData, loading: loadingWithdrawals, refetch: refetchWithdrawals } = useRealtimeData<{ withdrawals: WithdrawalRequest[] }>({ endpoint: '/api/withdrawals' });
 
-  const transactions = transactionsData?.transactions || [];
   const withdrawalRequests = withdrawalsData?.withdrawals || [];
-  const loading = loadingDashboard || loadingTransactions || loadingWithdrawals;
+  const loading = loadingDashboard || loadingWithdrawals;
 
   const refetchAll = async () => {
     await Promise.all([
       refetchDashboard(),
-      refetchTransactions(),
       refetchWithdrawals(),
     ]);
   };
-
-  const filteredTransactions = useMemo(() => {
-    return transactions
-      .filter(t => {
-        const searchMatch = searchTerm ? t.transactionNo.toLowerCase().includes(searchTerm.toLowerCase()) : true;
-        const typeMatch = typeFilter !== 'all' ? t.type === typeFilter : true;
-        return searchMatch && typeMatch;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [transactions, searchTerm, typeFilter]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -119,50 +99,49 @@ export default function NasabahDashboard({ user }: { user: any }) {
     window.location.href = '/';
   };
 
-    const handleWithdrawalRequest = async (amount: number, unitId: string) => {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/withdrawals', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ amount, unitId }),
-        });
+  const handleWithdrawalRequest = async (amount: number, unitId: string) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount, unitId }),
+    });
 
-        const resData = await response.json();
+    const resData = await response.json();
 
-        if (!response.ok) {
-            throw new Error(resData.error || 'Gagal mengajukan penarikan');
-        }
+    if (!response.ok) {
+        throw new Error(resData.error || 'Gagal mengajukan penarikan');
+    }
 
-        await refetchAll();
-        setTimeout(() => {
-            setActiveTab('withdrawals');
-        }, 4000); 
-    };
+    await refetchAll();
+    setTimeout(() => {
+        setActiveTab('withdrawals');
+    }, 4000); 
+  };
 
   const navItems = useMemo(() => [
     { name: 'Iktisar', value: 'overview', icon: Home },
     { name: 'Transaksi', value: 'transactions', icon: TrendingUp },
     { name: 'Penarikan', value: 'withdrawals', icon: Landmark },
+    { name: 'Notifikasi', value: 'notifications', icon: Bell, hidden: true },
     { name: 'Kartu Digital', value: 'card', icon: QrCode },
     { name: 'Pengaturan', value: 'settings', icon: Settings },
   ], []);
 
   const availableNavItems = useMemo(() => {
-    if (user.unitId) {
+    if (user?.unitId) {
       return navItems;
     }
     return navItems.filter(item => ['overview', 'card', 'settings'].includes(item.value));
   }, [user, navItems]);
 
-  useEffect(() => {
-    if (!availableNavItems.find(item => item.value === activeTab)) {
-      setActiveTab('overview');
-    }
-  }, [activeTab, availableNavItems]);
-
   const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.1 } } };
 
   const renderContent = () => {
+    if (!user) {
+      return <NasabahDashboardSkeleton />;
+    }
+
     if (loading && !dashboardData && user.unitId) {
         return <NasabahDashboardSkeleton />;
     }
@@ -172,7 +151,6 @@ export default function NasabahDashboard({ user }: { user: any }) {
             <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
             {activeTab === 'overview' && (
                 <motion.div variants={cardVariants} initial="hidden" animate="visible">
-                    <UserHeader user={user} />
                     {!user.unitId && (
                         <Alert variant="default" className="mb-6 bg-yellow-100 border-yellow-400 text-yellow-800">
                             <AlertTriangle className="h-4 w-4 text-yellow-800" />
@@ -205,18 +183,9 @@ export default function NasabahDashboard({ user }: { user: any }) {
                     ) : null}
                 </motion.div>
             )}
-            {activeTab === 'transactions' && (
-                <TransactionHistory
-                transactions={filteredTransactions}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                typeFilter={typeFilter}
-                setTypeFilter={setTypeFilter}
-                />
-            )}
-            {activeTab === 'withdrawals' && (
-                <WithdrawalHistory withdrawalRequests={withdrawalRequests} />
-            )}
+            {activeTab === 'transactions' && <TransactionHistory />}
+            {activeTab === 'withdrawals' && <WithdrawalHistory />}
+            {activeTab === 'notifications' && <NotificationHistory userRole={user.role} />} 
             {activeTab === 'card' && (
                 <DigitalCard
                 user={user}
@@ -237,6 +206,7 @@ export default function NasabahDashboard({ user }: { user: any }) {
       <main className="flex-1 h-screen overflow-hidden">
         <PullToRefresh onRefresh={refetchAll} loading={loading}>
             <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+                <UserHeader user={user} />
                 {renderContent()}
             </div>
         </PullToRefresh>

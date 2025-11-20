@@ -7,7 +7,8 @@ import {
   UserPlus,
   Settings,
   DollarSign,
-  BookText
+  BookText,
+  Bell
 } from 'lucide-react'
 import NasabahManagement from '@/components/unit/NasabahManagement'
 import DepositForm from '@/components/unit/DepositForm'
@@ -16,6 +17,7 @@ import AccountSettings from '@/components/unit/AccountSettings'
 import WithdrawalManagement from '@/components/unit/WithdrawalManagement'
 import DepositHistory from '@/components/unit/DepositHistory'
 import Statement from '@/components/unit/Statement'
+import NotificationHistory from '@/components/common/NotificationHistory'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Sidebar from '@/components/ui/sidebar'
@@ -23,7 +25,15 @@ import BottomBar from '@/components/ui/bottom-bar'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardData } from '@/types'
-import { UnitDashboardProvider, useUnitDashboard } from '@/context/UnitDashboardContext'
+import { UnitDashboardProvider } from '@/context/UnitDashboardContext'
+import { useTabContext } from '@/context/TabContext';
+import { UserHeader } from '@/components/ui/user-header'
+
+interface User {
+  id: string;
+  name: string;
+  role: 'NASABAH' | 'UNIT' | 'ADMIN';
+}
 
 const UnitDashboardSkeleton = () => (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -46,12 +56,12 @@ const UnitDashboardSkeleton = () => (
     </div>
 );
 
-const UnitDashboardContent = ({ user }: { user: any }) => {
-  const [activeTab, setActiveTab] = useState('overview');
+const UnitDashboardContent = ({ user }: { user: User }) => {
+  const { activeTab, setActiveTab } = useTabContext(); // Use context for active tab
   const [depositTab, setDepositTab] = useState('form');
+  const [newlyAddedTransactionId, setNewlyAddedTransactionId] = useState<string | null>(null);
   const { data: dashboardData, loading, refetch } = useRealtimeData<DashboardData>({endpoint: '/api/dashboard', refreshInterval: 30000});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { setRefreshHistory } = useUnitDashboard();
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -63,8 +73,9 @@ const UnitDashboardContent = ({ user }: { user: any }) => {
     { name: 'Iktisar', value: 'overview', icon: Home },
     { name: 'Nasabah', value: 'nasabah', icon: Users },
     { name: 'Menabung', value: 'deposit', icon: UserPlus },
-    { name: 'Penarikan', value: 'withdrawal', icon: DollarSign },
+    { name: 'Penarikan', value: 'withdrawals', icon: DollarSign }, // ALIGNED identifier
     { name: 'Statement', value: 'statement', icon: BookText },
+    { name: 'Notifikasi', value: 'notifications', icon: Bell },
     { name: 'Pengaturan', value: 'settings', icon: Settings },
   ];
 
@@ -87,7 +98,10 @@ const UnitDashboardContent = ({ user }: { user: any }) => {
             {activeTab === 'deposit' && (
                 <div>
                     <div className="flex border-b mb-4">
-                        <button onClick={() => setDepositTab('form')} className={`px-4 py-2 text-sm font-medium ${
+                        <button onClick={() => {
+                          setDepositTab('form');
+                          setNewlyAddedTransactionId(null);
+                        }} className={`px-4 py-2 text-sm font-medium ${
                             depositTab === "form"
                             ? "border-b-2 border-green-600 text-green-600"
                             : "text-gray-500"
@@ -102,16 +116,17 @@ const UnitDashboardContent = ({ user }: { user: any }) => {
                             Riwayat
                         </button>
                     </div>
-                    {depositTab === 'form' && <DepositForm onSuccess={() => { 
+                    {depositTab === 'form' && <DepositForm onSuccess={(transactionId) => { 
                         refetch(); 
-                        setDepositTab('history'); 
-                        setRefreshHistory(true);
+                        setNewlyAddedTransactionId(transactionId);
+                        setDepositTab('history');
                     }} />}
-                    {depositTab === 'history' && <DepositHistory />}
+                    {depositTab === 'history' && <DepositHistory key={Date.now()} newlyAddedTransactionId={newlyAddedTransactionId} />}
                 </div>
             )}
-            {activeTab === 'withdrawal' && <WithdrawalManagement onUpdate={refetch} />}
+            {activeTab === 'withdrawals' && <WithdrawalManagement onUpdate={refetch} />} 
             {activeTab === 'statement' && <Statement />}
+            {activeTab === 'notifications' && <NotificationHistory userRole={user.role} />}
             {activeTab === 'settings' && <AccountSettings user={user} />}
             </motion.div>
         </AnimatePresence>
@@ -124,6 +139,7 @@ const UnitDashboardContent = ({ user }: { user: any }) => {
       <main className="flex-1 h-screen overflow-hidden">
         <PullToRefresh onRefresh={handleRefresh} loading={loading}>
             <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+              <UserHeader user={user} />
                 {renderContent()}
             </div>
         </PullToRefresh>
@@ -133,7 +149,7 @@ const UnitDashboardContent = ({ user }: { user: any }) => {
   );
 }
 
-export default function UnitDashboard({ user }: { user: any }) {
+export default function UnitDashboard({ user }: { user: User }) {
     return (
         <UnitDashboardProvider>
             <UnitDashboardContent user={user} />

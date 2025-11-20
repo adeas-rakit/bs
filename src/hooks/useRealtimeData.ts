@@ -13,13 +13,20 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
   const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
+    if (!endpoint) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(endpoint, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        cache: 'no-store', // Disable caching to ensure fresh data is always fetched
       })
       
       if (response.ok) {
@@ -27,9 +34,12 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
         setData(result.data || result)
         setError(null)
       } else {
-        setError('Failed to fetch data')
+        const errorText = await response.text();
+        console.error("API Error:", response.status, errorText);
+        setError(`Failed to fetch data (${response.status})`)
       }
     } catch (err) {
+      console.error('Network error:', err);
       setError('Network error')
     } finally {
       setLoading(false)

@@ -10,6 +10,7 @@ interface NavItem {
   name: string
   value: string
   icon: React.ElementType
+  hidden?: boolean
 }
 
 interface BottomBarProps {
@@ -28,8 +29,8 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
 
-  const visibleItems = navItems.slice(0, MAX_VISIBLE_ITEMS);
-  const moreItems = navItems.slice(MAX_VISIBLE_ITEMS);
+  const visibleItems = navItems.filter(item => !item.hidden).slice(0, MAX_VISIBLE_ITEMS);
+  const moreItems = navItems.filter(item => !item.hidden).slice(MAX_VISIBLE_ITEMS);
 
   const handleTabChange = (tab: string) => {
     onTabChange(tab);

@@ -120,3 +120,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .lightbeam-animate {
+    animation: lightbeam 1.5s ease-out infinite;
+  }
+}
+
+@keyframes lightbeam {
+  0% {
+    box-shadow: 0 0 5px 2px rgba(74, 222, 128, 0), 0 0 0 1px rgba(74, 222, 128, 0);
+  }
+  20% {
+    box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.4), 0 0 0 1px rgba(74, 222, 128, 0.6);
+  }
+  80% {
+    box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.4), 0 0 0 1px rgba(74, 222, 128, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 5px 2px rgba(74, 222, 128, 0), 0 0 0 1px rgba(74, 222, 128, 0);
+  }
+}
