@@ -1,10 +1,10 @@
 {pkgs}: {
   channel = "stable-25.05";
   packages = [
-    pkgs.nodejs_24
+    pkgs.nodejs_24,
+    pkgs.python3
   ];
   idx.extensions = [
-    
   ];
   idx.previews = {
     previews = {

@@ -1,8 +1,6 @@
-import { PrismaClient, UserStatus } from '@prisma/client'
-import bcrypt from 'bcryptjs'
-
-const db = new PrismaClient()
-
+import bcrypt from 'bcryptjs';
+import { db } from '@/lib/db'; 
+import { UserStatus } from '@/generated/prisma/client';
 async function createSeedAccounts() {
   try {
     console.log('⏳ Start creating seed accounts...')

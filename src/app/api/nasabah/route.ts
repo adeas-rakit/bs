@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { UserStatus } from '@prisma/client';
+import { UserStatus } from '@/generated/prisma/client';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 
