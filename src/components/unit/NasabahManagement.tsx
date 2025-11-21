@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { 
@@ -14,8 +13,9 @@ import {
   Phone,
   CreditCard,
   Edit,
-  Building,
-  Home
+  Home,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -98,6 +98,9 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
   const [statusFilter, setStatusFilter] = useState('')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedNasabah, setSelectedNasabah] = useState<Nasabah | null>(null)
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit, setLimit] = useState(5);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -106,12 +109,15 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
   })
 
   const fetchNasabah = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token')
       const params = new URLSearchParams()
       if (searchTerm) params.append('search', searchTerm)
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
-      
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+
       const response = await fetch(`/api/nasabah?${params}` , {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -121,6 +127,7 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
       if (response.ok) {
         const data = await response.json()
         setNasabah(data.nasabah)
+        setTotalPages(data.totalPages)
       } else {
         throw new Error("Gagal memuat data nasabah")
       }
@@ -135,14 +142,19 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
 
   useEffect(() => {
     const handler = setTimeout(() => {
-        fetchNasabah()
-        setLoading(true);
+      setPage(1); // Reset to first page on search/filter change
+      fetchNasabah()
     }, 500);
 
     return () => {
         clearTimeout(handler);
     };
   }, [searchTerm, statusFilter])
+
+  useEffect(() => {
+    fetchNasabah();
+  }, [page]);
+
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -206,13 +218,15 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
   const formatWeight = (weight: number) => {
     return `${(weight || 0).toFixed(2)} kg`
   }
-
-  if (loading) {
-    return <NasabahManagementSkeleton />
-  }
+  
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 flex flex-col h-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold">Manajemen Nasabah</h2>
@@ -247,70 +261,96 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
         </div>
       </div>
 
-      <ScrollArea className="h-full pb-10">
-        <div className="grid gap-4">
-          {nasabah.length > 0 ? nasabah.map((nasabahItem) => (
-            <Card key={nasabahItem.id}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2 w-full">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <User className="h-5 w-5 text-green-600" />
-                      <h3 className="font-semibold">{nasabahItem.user.name}</h3>
-                      <Badge variant={nasabahItem.user.status === 'AKTIF' ? 'success' : 'destructive'}>
-                        {nasabahItem.user.status === 'AKTIF' ? 'Aktif' : 'Ditangguhkan'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <CreditCard className="h-4 w-4" />
-                        {nasabahItem.accountNo}
+      <div className="flex-grow">
+        {loading ? <NasabahManagementSkeleton /> : (
+          <div className="grid gap-4">
+            {nasabah.length > 0 ? nasabah.map((nasabahItem) => (
+              <Card key={nasabahItem.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2 w-full">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <User className="h-5 w-5 text-green-600" />
+                        <h3 className="font-semibold">{nasabahItem.user.name}</h3>
+                        <Badge variant={nasabahItem.user.status === 'AKTIF' ? 'default' : 'destructive'}>
+                          {nasabahItem.user.status === 'AKTIF' ? 'Aktif' : 'Ditangguhkan'}
+                        </Badge>
                       </div>
-                      {nasabahItem.user.phone && (
+                      <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                         <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {nasabahItem.user.phone}
+                          <CreditCard className="h-4 w-4" />
+                          {nasabahItem.accountNo}
                         </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Home className="h-4 w-4" />
-                        {nasabahItem.unit ? nasabahItem.unit.name : 'Belum Terikat'}
+                        {nasabahItem.user.phone && (
+                          <div className="flex items-center gap-1">
+                            <Phone className="h-4 w-4" />
+                            {nasabahItem.user.phone}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <Home className="h-4 w-4" />
+                          {nasabahItem.unit ? nasabahItem.unit.name : 'Belum Terikat'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1 font-medium">
+                          {formatCurrency(nasabahItem.balance)}
+                        </div>
+                        <div className="flex items-center gap-1 font-medium">
+                          {formatWeight(nasabahItem.totalWeight)}
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-500">
+                          ({nasabahItem.depositCount}x menabung)
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1 font-medium">
-                        {formatCurrency(nasabahItem.balance)}
-                      </div>
-                      <div className="flex items-center gap-1 font-medium">
-                        {formatWeight(nasabahItem.totalWeight)}
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-500">
-                        ({nasabahItem.depositCount}x menabung)
-                      </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(nasabahItem)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openEditDialog(nasabahItem)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )) : (
-            <EmptyState 
-              icon={<User />} 
-              title="Tidak Ada Nasabah Ditemukan" 
-              description="Tidak ada nasabah yang cocok dengan filter atau pencarian Anda. Coba lagi."
-            />
-          )}
+                </CardContent>
+              </Card>
+            )) : (
+              <EmptyState 
+                icon={<User />} 
+                title="Tidak Ada Nasabah Ditemukan" 
+                description="Tidak ada nasabah yang cocok dengan filter atau pencarian Anda. Coba lagi."
+              />
+            )}
+          </div>
+        )}
+       </div>
+
+      {!loading && totalPages > 1 && (
+         <div className="flex items-center justify-end space-x-2 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Sebelumnya</span>
+            </Button>
+            <span className="text-sm">Page {page} of {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              <span>Berikutnya</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
         </div>
-      </ScrollArea>
+      )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>

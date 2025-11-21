@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
@@ -7,6 +8,7 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{ts,tsx}",
   ],
   theme: {
   	extend: {
@@ -56,7 +58,16 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+      keyframes: {
+        "scan-laser": {
+          "0%": { top: "0%" },
+          "100%": { top: "calc(100% - 4px)" },
+        },
+      },
+      animation: {
+        "scan-laser": "scan-laser 2.5s infinite alternate ease-in-out",
+      },
   	}
   },
   plugins: [tailwindcssAnimate],

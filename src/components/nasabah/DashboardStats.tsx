@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatWeight } from '@/lib/utils';
-import { ArrowDownRight } from 'lucide-react';
+import { ArrowDownRight, ArrowRight } from 'lucide-react';
 import { BalanceCard } from './BalanceCard';
+import { Progress } from '@/components/ui/progress';
 
 // Prop interfaces
 interface NasabahUnitBalance {
@@ -35,6 +36,7 @@ interface DashboardStatsProps {
   handleWithdrawalRequest: (amount: number, unitId: string) => Promise<void>;
   withdrawalRequests: WithdrawalRequest[];
   onSwitchToWithdrawals: () => void;
+  onSwitchToTransactions: () => void;
 }
 
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -57,6 +59,7 @@ export default function DashboardStats({
   handleWithdrawalRequest,
   withdrawalRequests = [],
   onSwitchToWithdrawals,
+  onSwitchToTransactions,
 }: DashboardStatsProps) {
   const allBalances = [{ unitId: 'overall', unitName: 'Keseluruhan', balance: overall.balance }, ...nasabahUnitBalances];
   const [activeIndex, setActiveIndex] = useState(0);
@@ -67,6 +70,8 @@ export default function DashboardStats({
 
   const selectedUnitId = allBalances[activeIndex]?.unitId || 'overall';
   const statsToDisplay = selectedUnitId === 'overall' ? overall : byUnit?.[selectedUnitId] || { balance: 0, totalWeight: 0, totalWithdrawals: 0 };
+  const weightGoal = 100; // Target 100 kg
+  const weightProgress = (statsToDisplay.totalWeight / weightGoal) * 100;
 
   return (
     <div>
@@ -121,26 +126,30 @@ export default function DashboardStats({
         </motion.div>
 
         <motion.div variants={itemVariants} className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total Sampah</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatWeight(statsToDisplay.totalWeight)}</p>
-              {selectedUnitId === 'overall' && 
-                <p className="text-xs text-muted-foreground">dari {depositCount} kali menabung</p>
-              }
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Penarikan</CardTitle>
-              <ArrowDownRight className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(statsToDisplay.totalWithdrawals)}</div>
-            </CardContent>
-          </Card>
+          <motion.div whileTap={{ scale: 0.98 }} onClick={onSwitchToTransactions} className="cursor-pointer">
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Sampah</CardTitle>
+                <ArrowRight className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{formatWeight(statsToDisplay.totalWeight)}</p>
+                <Progress value={weightProgress} className="mt-2" />
+                <p className="text-xs text-muted-foreground mt-1">Target: {formatWeight(weightGoal)}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div whileTap={{ scale: 0.98 }} onClick={onSwitchToWithdrawals} className="cursor-pointer">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Penarikan</CardTitle>
+                <ArrowDownRight className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(statsToDisplay.totalWithdrawals)}</div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
       </div>
     </div>

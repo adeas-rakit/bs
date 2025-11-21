@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/ui/sidebar';
 import BottomBar from '@/components/ui/bottom-bar';
@@ -18,7 +18,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserHeader } from '@/components/ui/user-header';
 import { useTabContext } from '@/context/TabContext';
+import FunFactCard from '@/components/nasabah/FunFactCard';
+import RankingDisplay from '@/components/nasabah/RankingDisplay';
 
+// Interfaces
 interface Stats {
   balance: number;
   totalWeight: number;
@@ -56,26 +59,16 @@ interface User {
   role: 'NASABAH' | 'UNIT' | 'ADMIN';
 }
 
+// Skeleton Component
 const NasabahDashboardSkeleton = () => (
   <div className="p-4 sm:p-6 lg:p-8">
-    <div className="mb-6">
-      <Skeleton className="h-8 w-48 mb-2" />
-      <Skeleton className="h-4 w-64" />
-    </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-      <Skeleton className="h-32 rounded-lg" />
-      <Skeleton className="h-32 rounded-lg" />
-      <Skeleton className="h-32 rounded-lg" />
-    </div>
-    <div>
-      <Skeleton className="h-6 w-40 mb-4" />
-      <Skeleton className="h-16 rounded-lg mb-2" />
-      <Skeleton className="h-16 rounded-lg mb-2" />
-      <Skeleton className="h-16 rounded-lg" />
-    </div>
+    <div className="mb-6"><Skeleton className="h-8 w-48 mb-2" /><Skeleton className="h-4 w-64" /></div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"><Skeleton className="h-32 rounded-lg" /><Skeleton className="h-32 rounded-lg" /><Skeleton className="h-32 rounded-lg" /></div>
+    <div><Skeleton className="h-6 w-40 mb-4" /><Skeleton className="h-16 rounded-lg mb-2" /><Skeleton className="h-16 rounded-lg mb-2" /><Skeleton className="h-16 rounded-lg" /></div>
   </div>
 );
 
+// Main Component
 export default function NasabahDashboard({ user }: { user: User | null }) {
   const { activeTab, setActiveTab } = useTabContext();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -87,10 +80,7 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   const loading = loadingDashboard || loadingWithdrawals;
 
   const refetchAll = async () => {
-    await Promise.all([
-      refetchDashboard(),
-      refetchWithdrawals(),
-    ]);
+    await Promise.all([refetchDashboard(), refetchWithdrawals()]);
   };
 
   const handleLogout = () => {
@@ -101,22 +91,11 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
 
   const handleWithdrawalRequest = async (amount: number, unitId: string) => {
     const token = localStorage.getItem('token');
-    const response = await fetch('/api/withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amount, unitId }),
-    });
-
+    const response = await fetch('/api/withdrawals', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ amount, unitId }) });
     const resData = await response.json();
-
-    if (!response.ok) {
-        throw new Error(resData.error || 'Gagal mengajukan penarikan');
-    }
-
+    if (!response.ok) { throw new Error(resData.error || 'Gagal mengajukan penarikan'); }
     await refetchAll();
-    setTimeout(() => {
-        setActiveTab('withdrawals');
-    }, 4000); 
+    setTimeout(() => { setActiveTab('withdrawals'); }, 4000);
   };
 
   const navItems = useMemo(() => [
@@ -129,22 +108,15 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   ], []);
 
   const availableNavItems = useMemo(() => {
-    if (user?.unitId) {
-      return navItems;
-    }
+    if (user?.unitId) { return navItems; }
     return navItems.filter(item => ['overview', 'card', 'settings'].includes(item.value));
   }, [user, navItems]);
 
   const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.1 } } };
 
   const renderContent = () => {
-    if (!user) {
-      return <NasabahDashboardSkeleton />;
-    }
-
-    if (loading && !dashboardData && user.unitId) {
-        return <NasabahDashboardSkeleton />;
-    }
+    if (!user) { return <NasabahDashboardSkeleton />; }
+    if (loading && !dashboardData && user.unitId) { return <NasabahDashboardSkeleton />; }
 
     return (
         <AnimatePresence mode="wait">
@@ -153,11 +125,7 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
                 <motion.div variants={cardVariants} initial="hidden" animate="visible">
                     {!user.unitId && (
                         <Alert variant="default" className="mb-6 bg-yellow-100 border-yellow-400 text-yellow-800">
-                            <AlertTriangle className="h-4 w-4 text-yellow-800" />
-                            <AlertTitle>Aktivasi Akun Diperlukan</AlertTitle>
-                            <AlertDescription>
-                            Untuk mengaktifkan semua fitur, silakan kunjungi unit terdekat dan tunjukkan QR Code dari menu 'Kartu Digital' untuk dipindai oleh petugas.
-                            </AlertDescription>
+                            <AlertTriangle className="h-4 w-4 text-yellow-800" /><AlertTitle>Aktivasi Akun Diperlukan</AlertTitle><AlertDescription>Untuk mengaktifkan semua fitur, silakan kunjungi unit terdekat dan tunjukkan QR Code dari menu 'Kartu Digital' untuk dipindai oleh petugas.</AlertDescription>
                         </Alert>
                     )}
                     {user.unitId && dashboardData ? (
@@ -171,14 +139,15 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
                                 handleWithdrawalRequest={handleWithdrawalRequest}
                                 withdrawalRequests={withdrawalRequests}
                                 onSwitchToWithdrawals={() => setActiveTab('withdrawals')}
+                                onSwitchToTransactions={() => setActiveTab('transactions')}
                             />
-                            <RecentActivity recentTransactions={dashboardData.recentTransactions} />
+                            <RankingDisplay />
+                            {dashboardData.recentTransactions.length > 0 ? <RecentActivity recentTransactions={dashboardData.recentTransactions} /> : <FunFactCard />}
+
                         </>
                     ) : !user.unitId ? (
                         <div className="text-center p-8 bg-gray-100 rounded-lg">
-                            <Home className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">Akun Belum Aktif</h3>
-                            <p className="mt-1 text-sm text-gray-500">Semua fitur akan ditampilkan saat akun telah diaktifkan melalui Unit Bank Sampah Terdekat</p>
+                            <Home className="mx-auto h-12 w-12 text-gray-400" /><h3 className="mt-2 text-sm font-medium text-gray-900">Akun Belum Aktif</h3><p className="mt-1 text-sm text-gray-500">Semua fitur akan ditampilkan saat akun telah diaktifkan melalui Unit Bank Sampah Terdekat</p>
                         </div>
                     ) : null}
                 </motion.div>
@@ -186,13 +155,7 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
             {activeTab === 'transactions' && <TransactionHistory />}
             {activeTab === 'withdrawals' && <WithdrawalHistory />}
             {activeTab === 'notifications' && <NotificationHistory userRole={user.role} />} 
-            {activeTab === 'card' && (
-                <DigitalCard
-                user={user}
-                balance={dashboardData?.overall?.balance ?? 0}
-                totalWeight={dashboardData?.overall?.totalWeight ?? 0}
-                />
-            )}
+            {activeTab === 'card' && <DigitalCard user={user} balance={dashboardData?.overall?.balance ?? 0} totalWeight={dashboardData?.overall?.totalWeight ?? 0} />}
             {activeTab === 'settings' && <AccountSettings user={user} />}
             </motion.div>
         </AnimatePresence>
@@ -202,7 +165,6 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   return (
     <div className="min-h-screen flex">
       <Sidebar user={user} navItems={availableNavItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-
       <main className="flex-1 h-screen overflow-hidden">
         <PullToRefresh onRefresh={refetchAll} loading={loading}>
             <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">

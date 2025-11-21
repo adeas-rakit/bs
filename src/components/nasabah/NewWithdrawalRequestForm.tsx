@@ -105,7 +105,7 @@ export function NewWithdrawalRequestForm({ nasabahUnitBalances = [], onSubmit, i
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
                   <input id="amount" type="number" value={amount} max={selectedUnit?.balance || 0} min={10000} onChange={e => setAmount(e.target.value)} placeholder="0" className="w-full text-center text-4xl font-bold bg-transparent border-none focus:ring-0" />
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-6">
+              <div className="grid grid-cols-3 gap-2 mb-2">
                 {quickAmounts.map(qAmount => (
                     <Button disabled={(selectedUnit?.balance || 0) < qAmount?true:false} key={qAmount} variant="outline" size="sm" onClick={() => setAmount(String(qAmount))}>{formatCurrency(qAmount).replace('000', '').slice(0, -1)}k</Button>
                 ))}

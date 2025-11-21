@@ -18,13 +18,14 @@ import WithdrawalManagement from '@/components/unit/WithdrawalManagement'
 import DepositHistory from '@/components/unit/DepositHistory'
 import Statement from '@/components/unit/Statement'
 import NotificationHistory from '@/components/common/NotificationHistory'
+import QRScannerComponent from '@/components/common/QRScanner' // Import the new QR Scanner
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Sidebar from '@/components/ui/sidebar'
 import BottomBar from '@/components/ui/bottom-bar'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DashboardData } from '@/types'
+import { DashboardData, Nasabah } from '@/types' // Assuming Nasabah type is in types
 import { UnitDashboardProvider } from '@/context/UnitDashboardContext'
 import { useTabContext } from '@/context/TabContext';
 import { UserHeader } from '@/components/ui/user-header'
@@ -57,11 +58,15 @@ const UnitDashboardSkeleton = () => (
 );
 
 const UnitDashboardContent = ({ user }: { user: User }) => {
-  const { activeTab, setActiveTab } = useTabContext(); // Use context for active tab
+  const { activeTab, setActiveTab } = useTabContext();
   const [depositTab, setDepositTab] = useState('form');
   const [newlyAddedTransactionId, setNewlyAddedTransactionId] = useState<string | null>(null);
   const { data: dashboardData, loading, refetch } = useRealtimeData<DashboardData>({endpoint: '/api/dashboard', refreshInterval: 30000});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // --- QR Scanner State ---
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [scannedNasabah, setScannedNasabah] = useState<Nasabah | null>(null);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -73,7 +78,7 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
     { name: 'Iktisar', value: 'overview', icon: Home },
     { name: 'Nasabah', value: 'nasabah', icon: Users },
     { name: 'Menabung', value: 'deposit', icon: UserPlus },
-    { name: 'Penarikan', value: 'withdrawals', icon: DollarSign }, // ALIGNED identifier
+    { name: 'Penarikan', value: 'withdrawals', icon: DollarSign },
     { name: 'Statement', value: 'statement', icon: BookText },
     { name: 'Notifikasi', value: 'notifications', icon: Bell },
     { name: 'Pengaturan', value: 'settings', icon: Settings },
@@ -81,6 +86,26 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
 
   const handleRefresh = async () => {
     await refetch();
+  };
+
+  // --- QR Scanner Handlers ---
+  const handleScanSuccess = (nasabahData: Nasabah) => {
+    setScannedNasabah(nasabahData);
+    setIsQRScannerOpen(false);
+    setActiveTab('deposit'); // Switch to deposit tab on successful scan
+    setDepositTab('form');
+  };
+
+  const handleScannerClose = () => {
+    setIsQRScannerOpen(false);
+  };
+
+  const handleScanClick = () => {
+    setIsQRScannerOpen(true);
+  };
+  
+  const handleClearNasabah = () => {
+    setScannedNasabah(null);
   };
 
   const renderContent = () => {
@@ -116,11 +141,18 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
                             Riwayat
                         </button>
                     </div>
-                    {depositTab === 'form' && <DepositForm onSuccess={(transactionId) => { 
-                        refetch(); 
-                        setNewlyAddedTransactionId(transactionId);
-                        setDepositTab('history');
-                    }} />}
+                    {depositTab === 'form' && <DepositForm 
+                        onSuccess={(transactionId) => { 
+                            refetch(); 
+                            handleClearNasabah();
+                            setNewlyAddedTransactionId(transactionId);
+                            setDepositTab('history');
+                        }} 
+                        // Pass the new props to DepositForm
+                        onScanClick={handleScanClick}
+                        preselectedNasabah={scannedNasabah}
+                        onClearNasabah={handleClearNasabah}
+                      />}
                     {depositTab === 'history' && <DepositHistory key={Date.now()} newlyAddedTransactionId={newlyAddedTransactionId} />}
                 </div>
             )}
@@ -135,6 +167,16 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
 
   return (
     <div className="min-h-screen flex">
+      {/* Conditionally render the QR Scanner in a fullscreen overlay */}
+      <AnimatePresence>
+        {isQRScannerOpen && (
+          <QRScannerComponent 
+            onScanSuccess={handleScanSuccess} 
+            onClose={handleScannerClose} 
+          />
+        )}
+      </AnimatePresence>
+
       <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <main className="flex-1 h-screen overflow-hidden">
         <PullToRefresh onRefresh={handleRefresh} loading={loading}>

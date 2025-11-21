@@ -38,137 +38,101 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get('status');
     const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const skip = (page - 1) * limit;
+
+    let where: any = {};
+    const andConditions: any[] = [];
+
+    if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
+      andConditions.push({ user: { status: statusParam as UserStatus } });
+    }
+
+    if (search) {
+      andConditions.push({
+        OR: [
+          { user: { name: { contains: search } } },
+          { accountNo: { contains: search } },
+          { user: { phone: { contains: search } } },
+        ],
+      });
+    }
 
     if (user.role === 'UNIT' && user.unitId) {
-      let nasabahFilter: any = {};
-      const andConditions: any[] = [];
+      andConditions.push({
+        OR: [
+          { unitId: user.unitId },
+          { transactions: { some: { unitId: user.unitId } } }
+        ]
+      })
+    }
+    
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
 
-      if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
-        andConditions.push({ user: { status: statusParam as UserStatus } });
-      }
-
-      if (search) {
-        andConditions.push({
-          OR: [
-            { user: { name: { contains: search, mode: 'insensitive' } } },
-            { accountNo: { contains: search, mode: 'insensitive' } },
-            { user: { phone: { contains: search, mode: 'insensitive' } } },
-          ],
-        });
-      }
-
-      if (andConditions.length > 0) {
-        nasabahFilter.AND = andConditions;
-      }
-
-      const unitNasabahLinks = await db.unitNasabah.findMany({
-        where: {
-          unitId: user.unitId,
-          nasabah: nasabahFilter,
-        },
-        include: {
-          nasabah: {
-            include: {
-              user: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true, unitId: true } },
-              unit: { select: { id: true, name: true } },
-            },
-          },
-        },
-        orderBy: { nasabah: { createdAt: 'desc' } },
-      });
-
-      const nasabahIds = unitNasabahLinks.map(link => link.nasabahId);
-      const depositCounts = await db.transaction.groupBy({
-        by: ['nasabahId'],
-        where: { nasabahId: { in: nasabahIds }, unitId: user.unitId, type: 'DEPOSIT' },
-        _count: { id: true },
-      });
-
-      const depositCountMap = depositCounts.reduce((acc, curr) => {
-        acc[curr.nasabahId] = curr._count.id;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const nasabahList = unitNasabahLinks.map(link => ({
-        ...link.nasabah,
-        balance: link.balance,
-        totalWeight: link.totalWeight,
-        depositCount: depositCountMap[link.nasabahId] || 0,
-      }));
-
-      return NextResponse.json({ nasabah: nasabahList });
-    } else {
-      let where: any = {};
-      const andConditions: any[] = [];
-
-      if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
-        andConditions.push({ user: { status: statusParam as UserStatus } });
-      }
-
-      if (search) {
-        andConditions.push({
-          OR: [
-            { user: { name: { contains: search, mode: 'insensitive' } } },
-            { accountNo: { contains: search, mode: 'insensitive' } },
-            { user: { phone: { contains: search, mode: 'insensitive' } } },
-          ],
-        });
-      }
-
-      if (andConditions.length > 0) {
-        where.AND = andConditions;
-      }
-
-      const nasabah = await db.nasabah.findMany({
+    const [nasabah, total] = await Promise.all([
+      db.nasabah.findMany({
         where,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true, unitId: true } },
           unit: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
-      });
+        skip,
+        take: limit,
+      }),
+      db.nasabah.count({ where })
+    ]);
 
-      const nasabahIds = nasabah.map(n => n.id);
+    const nasabahIds = nasabah.map(n => n.id);
 
-      const [depositsByUnit, allUnits] = await Promise.all([
-        db.transaction.groupBy({
-            by: ['nasabahId', 'unitId'],
-            where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
-            _count: { id: true },
-        }),
-        db.unit.findMany({ select: { id: true, name: true } })
-      ]);
+    const [depositsByUnit, allUnits] = await Promise.all([
+      db.transaction.groupBy({
+          by: ['nasabahId', 'unitId'],
+          where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
+          _count: { id: true },
+      }),
+      db.unit.findMany({ select: { id: true, name: true } })
+    ]);
 
-      const unitMap = allUnits.reduce((acc, unit) => {
-        acc[unit.id] = unit.name;
-        return acc;
-      }, {} as Record<string, string>);
+    const unitMap = allUnits.reduce((acc, unit) => {
+      acc[unit.id] = unit.name;
+      return acc;
+    }, {} as Record<string, string>);
 
-      const depositStatsMap = nasabahIds.reduce((acc, id) => {
-        acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
-        return acc;
-      }, {} as Record<string, { totalDepositCount: number, depositsByUnit: any[] }>);
+    const depositStatsMap = nasabahIds.reduce((acc, id) => {
+      acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
+      return acc;
+    }, {} as Record<string, { totalDepositCount: number, depositsByUnit: any[] }>);
 
-      depositsByUnit.forEach(group => {
-        if (group.nasabahId && group.unitId) {
-          const nasabahStat = depositStatsMap[group.nasabahId];
-          const count = group._count.id;
-          nasabahStat.totalDepositCount += count;
-          nasabahStat.depositsByUnit.push({
-            unitId: group.unitId,
-            unitName: unitMap[group.unitId] || 'Unknown Unit',
-            count: count,
-          });
-        }
-      });
+    depositsByUnit.forEach(group => {
+      if (group.nasabahId && group.unitId) {
+        const nasabahStat = depositStatsMap[group.nasabahId];
+        const count = group._count.id;
+        nasabahStat.totalDepositCount += count;
+        nasabahStat.depositsByUnit.push({
+          unitId: group.unitId,
+          unitName: unitMap[group.unitId] || 'Unknown Unit',
+          count: count,
+        });
+      }
+    });
 
-      const augmentedNasabah = nasabah.map(n => ({
-        ...n,
-        ...(depositStatsMap[n.id] || { totalDepositCount: 0, depositsByUnit: [] }),
-      }));
+    const augmentedNasabah = nasabah.map(n => ({
+      ...n,
+      ...(depositStatsMap[n.id] || { totalDepositCount: 0, depositsByUnit: [] }),
+    }));
 
-      return NextResponse.json({ nasabah: augmentedNasabah });
-    }
+    return NextResponse.json({ 
+      nasabah: augmentedNasabah,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+    
   } catch (error: any) {
     console.error('Get nasabah error:', error);
     return NextResponse.json(
