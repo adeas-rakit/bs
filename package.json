@@ -94,11 +94,11 @@
     "vaul": "^1.1.2",
     "z-ai-web-dev-sdk": "^0.0.11",
     "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@tailwindcss/postcss": "^4.1.17"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.1.17",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^24",
     "@types/react": "^19",
