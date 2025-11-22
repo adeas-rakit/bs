@@ -14,7 +14,7 @@ let prismaClient: PrismaClient;
 if (process.env.JENIS_DB === 'mysql') {
   console.log('Using MySQL database');
   const adapter = new PrismaMariaDb({
-    host: "localhost",
+    host: process.env.DATABASE_URL || 'localhost',
     port: 3306,
     connectionLimit: 5
   });
