@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db'; 
-import { UserStatus } from '@/generated/prisma/client';
+import { UserStatus } from '@prisma/client';
 async function createSeedAccounts() {
   try {
     console.log('⏳ Start creating seed accounts...')
