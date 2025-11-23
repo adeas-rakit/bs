@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model WasteType
@@ -578,6 +578,7 @@ export type WasteTypeCreateOrConnectWithoutCreatedByInput = {
 
 export type WasteTypeCreateManyCreatedByInputEnvelope = {
   data: Prisma.WasteTypeCreateManyCreatedByInput | Prisma.WasteTypeCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type WasteTypeUpsertWithWhereUniqueWithoutCreatedByInput = {
@@ -639,6 +640,7 @@ export type WasteTypeCreateOrConnectWithoutUnitInput = {
 
 export type WasteTypeCreateManyUnitInputEnvelope = {
   data: Prisma.WasteTypeCreateManyUnitInput | Prisma.WasteTypeCreateManyUnitInput[]
+  skipDuplicates?: boolean
 }
 
 export type WasteTypeUpsertWithWhereUniqueWithoutUnitInput = {
@@ -1579,6 +1581,7 @@ export type WasteTypeCreateManyArgs<ExtArgs extends runtime.Types.Extensions.Int
    * The data used to create many WasteTypes.
    */
   data: Prisma.WasteTypeCreateManyInput | Prisma.WasteTypeCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1597,6 +1600,7 @@ export type WasteTypeCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Exten
    * The data used to create many WasteTypes.
    */
   data: Prisma.WasteTypeCreateManyInput | Prisma.WasteTypeCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

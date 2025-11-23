@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model TransactionItem
@@ -566,6 +566,7 @@ export type TransactionItemCreateOrConnectWithoutCreatedByInput = {
 
 export type TransactionItemCreateManyCreatedByInputEnvelope = {
   data: Prisma.TransactionItemCreateManyCreatedByInput | Prisma.TransactionItemCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionItemUpsertWithWhereUniqueWithoutCreatedByInput = {
@@ -622,6 +623,7 @@ export type TransactionItemCreateOrConnectWithoutWasteTypeInput = {
 
 export type TransactionItemCreateManyWasteTypeInputEnvelope = {
   data: Prisma.TransactionItemCreateManyWasteTypeInput | Prisma.TransactionItemCreateManyWasteTypeInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionItemUpsertWithWhereUniqueWithoutWasteTypeInput = {
@@ -665,6 +667,7 @@ export type TransactionItemCreateOrConnectWithoutTransactionInput = {
 
 export type TransactionItemCreateManyTransactionInputEnvelope = {
   data: Prisma.TransactionItemCreateManyTransactionInput | Prisma.TransactionItemCreateManyTransactionInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionItemUpsertWithWhereUniqueWithoutTransactionInput = {
@@ -1536,6 +1539,7 @@ export type TransactionItemCreateManyArgs<ExtArgs extends runtime.Types.Extensio
    * The data used to create many TransactionItems.
    */
   data: Prisma.TransactionItemCreateManyInput | Prisma.TransactionItemCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1554,6 +1558,7 @@ export type TransactionItemCreateManyAndReturnArgs<ExtArgs extends runtime.Types
    * The data used to create many TransactionItems.
    */
   data: Prisma.TransactionItemCreateManyInput | Prisma.TransactionItemCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

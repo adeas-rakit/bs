@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Nasabah
@@ -764,6 +764,7 @@ export type NasabahCreateOrConnectWithoutCreatedByInput = {
 
 export type NasabahCreateManyCreatedByInputEnvelope = {
   data: Prisma.NasabahCreateManyCreatedByInput | Prisma.NasabahCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type NasabahUpsertWithoutUserInput = {
@@ -876,6 +877,7 @@ export type NasabahCreateOrConnectWithoutUnitInput = {
 
 export type NasabahCreateManyUnitInputEnvelope = {
   data: Prisma.NasabahCreateManyUnitInput | Prisma.NasabahCreateManyUnitInput[]
+  skipDuplicates?: boolean
 }
 
 export type NasabahUpsertWithWhereUniqueWithoutUnitInput = {
@@ -2054,6 +2056,7 @@ export type NasabahCreateManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * The data used to create many Nasabahs.
    */
   data: Prisma.NasabahCreateManyInput | Prisma.NasabahCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -2072,6 +2075,7 @@ export type NasabahCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensi
    * The data used to create many Nasabahs.
    */
   data: Prisma.NasabahCreateManyInput | Prisma.NasabahCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

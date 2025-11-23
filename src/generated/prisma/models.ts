@@ -8,12 +8,12 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/User'
-export type * from './models/Unit'
-export type * from './models/Nasabah'
-export type * from './models/WasteType'
-export type * from './models/Transaction'
-export type * from './models/TransactionItem'
-export type * from './models/WithdrawalRequest'
-export type * from './models/UnitNasabah'
-export type * from './commonInputTypes'
+export type * from './models/User.js'
+export type * from './models/Unit.js'
+export type * from './models/Nasabah.js'
+export type * from './models/WasteType.js'
+export type * from './models/Transaction.js'
+export type * from './models/TransactionItem.js'
+export type * from './models/WithdrawalRequest.js'
+export type * from './models/UnitNasabah.js'
+export type * from './commonInputTypes.js'

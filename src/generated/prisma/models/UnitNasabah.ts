@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model UnitNasabah
@@ -548,6 +548,7 @@ export type UnitNasabahCreateOrConnectWithoutCreatedByInput = {
 
 export type UnitNasabahCreateManyCreatedByInputEnvelope = {
   data: Prisma.UnitNasabahCreateManyCreatedByInput | Prisma.UnitNasabahCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type UnitNasabahUpsertWithWhereUniqueWithoutCreatedByInput = {
@@ -601,6 +602,7 @@ export type UnitNasabahCreateOrConnectWithoutUnitInput = {
 
 export type UnitNasabahCreateManyUnitInputEnvelope = {
   data: Prisma.UnitNasabahCreateManyUnitInput | Prisma.UnitNasabahCreateManyUnitInput[]
+  skipDuplicates?: boolean
 }
 
 export type UnitNasabahUpsertWithWhereUniqueWithoutUnitInput = {
@@ -642,6 +644,7 @@ export type UnitNasabahCreateOrConnectWithoutNasabahInput = {
 
 export type UnitNasabahCreateManyNasabahInputEnvelope = {
   data: Prisma.UnitNasabahCreateManyNasabahInput | Prisma.UnitNasabahCreateManyNasabahInput[]
+  skipDuplicates?: boolean
 }
 
 export type UnitNasabahUpsertWithWhereUniqueWithoutNasabahInput = {
@@ -1495,6 +1498,7 @@ export type UnitNasabahCreateManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * The data used to create many UnitNasabahs.
    */
   data: Prisma.UnitNasabahCreateManyInput | Prisma.UnitNasabahCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1513,6 +1517,7 @@ export type UnitNasabahCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Ext
    * The data used to create many UnitNasabahs.
    */
   data: Prisma.UnitNasabahCreateManyInput | Prisma.UnitNasabahCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

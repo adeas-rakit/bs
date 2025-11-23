@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Unit
@@ -673,6 +673,7 @@ export type UnitCreateOrConnectWithoutCreatedByInput = {
 
 export type UnitCreateManyCreatedByInputEnvelope = {
   data: Prisma.UnitCreateManyCreatedByInput | Prisma.UnitCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type UnitUpsertWithoutUsersInput = {
@@ -2068,6 +2069,7 @@ export type UnitCreateManyArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * The data used to create many Units.
    */
   data: Prisma.UnitCreateManyInput | Prisma.UnitCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -2086,6 +2088,7 @@ export type UnitCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions
    * The data used to create many Units.
    */
   data: Prisma.UnitCreateManyInput | Prisma.UnitCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

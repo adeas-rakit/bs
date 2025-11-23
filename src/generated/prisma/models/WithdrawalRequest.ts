@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model WithdrawalRequest
@@ -719,6 +719,7 @@ export type WithdrawalRequestCreateOrConnectWithoutApprovedByInput = {
 
 export type WithdrawalRequestCreateManyApprovedByInputEnvelope = {
   data: Prisma.WithdrawalRequestCreateManyApprovedByInput | Prisma.WithdrawalRequestCreateManyApprovedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type WithdrawalRequestCreateWithoutCreatedByInput = {
@@ -752,6 +753,7 @@ export type WithdrawalRequestCreateOrConnectWithoutCreatedByInput = {
 
 export type WithdrawalRequestCreateManyCreatedByInputEnvelope = {
   data: Prisma.WithdrawalRequestCreateManyCreatedByInput | Prisma.WithdrawalRequestCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type WithdrawalRequestUpsertWithWhereUniqueWithoutApprovedByInput = {
@@ -833,6 +835,7 @@ export type WithdrawalRequestCreateOrConnectWithoutUnitInput = {
 
 export type WithdrawalRequestCreateManyUnitInputEnvelope = {
   data: Prisma.WithdrawalRequestCreateManyUnitInput | Prisma.WithdrawalRequestCreateManyUnitInput[]
+  skipDuplicates?: boolean
 }
 
 export type WithdrawalRequestUpsertWithWhereUniqueWithoutUnitInput = {
@@ -882,6 +885,7 @@ export type WithdrawalRequestCreateOrConnectWithoutNasabahInput = {
 
 export type WithdrawalRequestCreateManyNasabahInputEnvelope = {
   data: Prisma.WithdrawalRequestCreateManyNasabahInput | Prisma.WithdrawalRequestCreateManyNasabahInput[]
+  skipDuplicates?: boolean
 }
 
 export type WithdrawalRequestUpsertWithWhereUniqueWithoutNasabahInput = {
@@ -1935,6 +1939,7 @@ export type WithdrawalRequestCreateManyArgs<ExtArgs extends runtime.Types.Extens
    * The data used to create many WithdrawalRequests.
    */
   data: Prisma.WithdrawalRequestCreateManyInput | Prisma.WithdrawalRequestCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -1953,6 +1958,7 @@ export type WithdrawalRequestCreateManyAndReturnArgs<ExtArgs extends runtime.Typ
    * The data used to create many WithdrawalRequests.
    */
   data: Prisma.WithdrawalRequestCreateManyInput | Prisma.WithdrawalRequestCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */

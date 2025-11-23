@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Transaction
@@ -820,6 +820,7 @@ export type TransactionCreateOrConnectWithoutUserInput = {
 
 export type TransactionCreateManyUserInputEnvelope = {
   data: Prisma.TransactionCreateManyUserInput | Prisma.TransactionCreateManyUserInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionCreateWithoutCreatedByInput = {
@@ -863,6 +864,7 @@ export type TransactionCreateOrConnectWithoutCreatedByInput = {
 
 export type TransactionCreateManyCreatedByInputEnvelope = {
   data: Prisma.TransactionCreateManyCreatedByInput | Prisma.TransactionCreateManyCreatedByInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionUpsertWithWhereUniqueWithoutUserInput = {
@@ -957,6 +959,7 @@ export type TransactionCreateOrConnectWithoutUnitInput = {
 
 export type TransactionCreateManyUnitInputEnvelope = {
   data: Prisma.TransactionCreateManyUnitInput | Prisma.TransactionCreateManyUnitInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionUpsertWithWhereUniqueWithoutUnitInput = {
@@ -1016,6 +1019,7 @@ export type TransactionCreateOrConnectWithoutNasabahInput = {
 
 export type TransactionCreateManyNasabahInputEnvelope = {
   data: Prisma.TransactionCreateManyNasabahInput | Prisma.TransactionCreateManyNasabahInput[]
+  skipDuplicates?: boolean
 }
 
 export type TransactionUpsertWithWhereUniqueWithoutNasabahInput = {
@@ -2286,6 +2290,7 @@ export type TransactionCreateManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * The data used to create many Transactions.
    */
   data: Prisma.TransactionCreateManyInput | Prisma.TransactionCreateManyInput[]
+  skipDuplicates?: boolean
 }
 
 /**
@@ -2304,6 +2309,7 @@ export type TransactionCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Ext
    * The data used to create many Transactions.
    */
   data: Prisma.TransactionCreateManyInput | Prisma.TransactionCreateManyInput[]
+  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */
