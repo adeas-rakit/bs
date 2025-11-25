@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from 'react'
@@ -73,13 +72,13 @@ export default function AdminDashboard({ user }: { user: any }) {
   }
 
   const navItems = [
-    { name: 'Iktisar', value: 'overview', icon: Home },
-    { name: 'Unit', value: 'units', icon: Building },
-    { name: 'Transaksi', value: 'transactions', icon: TrendingUp },
-    { name: 'Pengguna', value: 'users', icon: Users },
-    { name: 'Harga Sampah', value: 'waste-types', icon: Scale },
-    { name: 'Penarikan', value: 'withdrawals', icon: CreditCard },
-    { name: 'Pengaturan', value: 'settings', icon: Settings },
+    { name: 'Iktisar', value: 'overview', icon: Home, bgColor: 'bg-red-50', hoverBgColor: 'bg-red-600', borderColor: 'border-red-200', hoverBorderColor: 'border-red-600' },
+    { name: 'Unit', value: 'units', icon: Building, bgColor: 'bg-blue-50', hoverBgColor: 'bg-blue-600', borderColor: 'border-blue-200', hoverBorderColor: 'border-blue-600' },
+    { name: 'Transaksi', value: 'transactions', icon: TrendingUp, bgColor: 'bg-green-50', hoverBgColor: 'bg-green-600', borderColor: 'border-green-200', hoverBorderColor: 'border-green-600' },
+    { name: 'Pengguna', value: 'users', icon: Users, bgColor: 'bg-yellow-50', hoverBgColor: 'bg-yellow-600', borderColor: 'border-yellow-200', hoverBorderColor: 'border-yellow-600' },
+    { name: 'Harga Sampah', value: 'waste-types', icon: Scale, bgColor: 'bg-indigo-50', hoverBgColor: 'bg-indigo-600', borderColor: 'border-indigo-200', hoverBorderColor: 'border-indigo-600' },
+    { name: 'Penarikan', value: 'withdrawals', icon: CreditCard, bgColor: 'bg-purple-50', hoverBgColor: 'bg-purple-600', borderColor: 'border-purple-200', hoverBorderColor: 'border-purple-600' },
+    { name: 'Pengaturan', value: 'settings', icon: Settings, bgColor: 'bg-gray-50', hoverBgColor: 'bg-gray-600', borderColor: 'border-gray-200', hoverBorderColor: 'border-gray-600' },
   ]
 
   const handleRefresh = async () => {
@@ -112,9 +111,9 @@ export default function AdminDashboard({ user }: { user: any }) {
     <div className="min-h-screen flex">
       <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
-      <main className="flex-1 overflow-hidden h-screen">
-        <PullToRefresh onRefresh={handleRefresh} loading={loading}>
-            <div className="p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
+      <main className="flex-1 h-screen overflow-y-auto">
+        <PullToRefresh onRefresh={handleRefresh} loading={loading} activeTab={activeTab}>
+            <div className="p-4 sm:p-6 lg:p-8 pb-40 lg:pb-8">
                 {renderContent()}
             </div>
         </PullToRefresh>

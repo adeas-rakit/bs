@@ -18,14 +18,14 @@ import WithdrawalManagement from '@/components/unit/WithdrawalManagement'
 import DepositHistory from '@/components/unit/DepositHistory'
 import Statement from '@/components/unit/Statement'
 import NotificationHistory from '@/components/common/NotificationHistory'
-import QRScannerComponent from '@/components/common/QRScanner' // Import the new QR Scanner
+import QRScannerComponent from '@/components/common/QRScanner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Sidebar from '@/components/ui/sidebar'
 import BottomBar from '@/components/ui/bottom-bar'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DashboardData, Nasabah } from '@/types' // Assuming Nasabah type is in types
+import { DashboardData, Nasabah } from '@/types'
 import { UnitDashboardProvider } from '@/context/UnitDashboardContext'
 import { useTabContext } from '@/context/TabContext';
 import { UserHeader } from '@/components/ui/user-header'
@@ -64,7 +64,6 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
   const { data: dashboardData, loading, refetch } = useRealtimeData<DashboardData>({endpoint: '/api/dashboard', refreshInterval: 30000});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // --- QR Scanner State ---
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scannedNasabah, setScannedNasabah] = useState<Nasabah | null>(null);
 
@@ -75,24 +74,23 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
   };
 
   const navItems = [
-    { name: 'Iktisar', value: 'overview', icon: Home },
-    { name: 'Nasabah', value: 'nasabah', icon: Users },
-    { name: 'Menabung', value: 'deposit', icon: UserPlus },
-    { name: 'Penarikan', value: 'withdrawals', icon: DollarSign },
-    { name: 'Statement', value: 'statement', icon: BookText },
-    { name: 'Notifikasi', value: 'notifications', icon: Bell },
-    { name: 'Pengaturan', value: 'settings', icon: Settings },
+    { name: 'Iktisar', value: 'overview', icon: Home, bgColor: 'bg-red-50', hoverBgColor: 'bg-red-600', borderColor: 'border-red-200', hoverBorderColor: 'border-red-600' },
+    { name: 'Nasabah', value: 'nasabah', icon: Users, bgColor: 'bg-blue-50', hoverBgColor: 'bg-blue-600', borderColor: 'border-blue-200', hoverBorderColor: 'border-blue-600' },
+    { name: 'Menabung', value: 'deposit', icon: UserPlus, bgColor: 'bg-green-50', hoverBgColor: 'bg-green-600', borderColor: 'border-green-200', hoverBorderColor: 'border-green-600' },
+    { name: 'Penarikan', value: 'withdrawals', icon: DollarSign, bgColor: 'bg-purple-50', hoverBgColor: 'bg-purple-600', borderColor: 'border-purple-200', hoverBorderColor: 'border-purple-600' },
+    { name: 'Statement', value: 'statement', icon: BookText, bgColor: 'bg-orange-50', hoverBgColor: 'bg-orange-600', borderColor: 'border-orange-200', hoverBorderColor: 'border-orange-600' },
+    { name: 'Notifikasi', value: 'notifications', icon: Bell, bgColor: 'bg-yellow-50', hoverBgColor: 'bg-yellow-600', borderColor: 'border-yellow-200', hoverBorderColor: 'border-yellow-600' },
+    { name: 'Pengaturan', value: 'settings', icon: Settings, bgColor: 'bg-gray-50', hoverBgColor: 'bg-gray-600', borderColor: 'border-gray-200', hoverBorderColor: 'border-gray-600' },
   ];
 
   const handleRefresh = async () => {
     await refetch();
   };
 
-  // --- QR Scanner Handlers ---
   const handleScanSuccess = (nasabahData: Nasabah) => {
     setScannedNasabah(nasabahData);
     setIsQRScannerOpen(false);
-    setActiveTab('deposit'); // Switch to deposit tab on successful scan
+    setActiveTab('deposit');
     setDepositTab('form');
   };
 
@@ -148,7 +146,6 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
                             setNewlyAddedTransactionId(transactionId);
                             setDepositTab('history');
                         }} 
-                        // Pass the new props to DepositForm
                         onScanClick={handleScanClick}
                         preselectedNasabah={scannedNasabah}
                         onClearNasabah={handleClearNasabah}
@@ -167,7 +164,6 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Conditionally render the QR Scanner in a fullscreen overlay */}
       <AnimatePresence>
         {isQRScannerOpen && (
           <QRScannerComponent 
@@ -178,9 +174,9 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
       </AnimatePresence>
 
       <Sidebar user={user} navItems={navItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <main className="flex-1 h-screen overflow-hidden">
-        <PullToRefresh onRefresh={handleRefresh} loading={loading}>
-            <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+      <main className="flex-1 h-screen overflow-y-auto">
+        <PullToRefresh onRefresh={handleRefresh} loading={loading} activeTab={activeTab}>
+            <div className="p-4 sm:p-6 lg:p-8 pb-40 lg:pb-8">
               <UserHeader user={user} />
                 {renderContent()}
             </div>

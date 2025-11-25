@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Recycle, Wallet, User, Crown, Target, Award } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRealtimeData } from '@/hooks/useRealtimeData';
 
 // Interfaces
 interface Rank {
@@ -23,6 +22,11 @@ interface RankingData {
 
 interface UserData {
     name: string;
+}
+
+interface RankingDetailsProps {
+  rankingData: RankingData | null;
+  loading: boolean;
 }
 
 // --- Helper Data ---
@@ -133,8 +137,7 @@ const RankingDetailsSkeleton = () => (
 );
 
 // --- Main Component ---
-export default function RankingDetails() {
-  const { data: rankingData, loading: loadingRanking } = useRealtimeData<RankingData>({ endpoint: '/api/ranking' });
+export default function RankingDetails({ rankingData, loading: loadingRanking }: RankingDetailsProps) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 

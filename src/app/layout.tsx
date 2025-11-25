@@ -15,24 +15,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bank Sampah - Sistem Manajemen Bank Sampah Digital",
+  title: "EcoNow",
   description: "Aplikasi modern untuk mengelola bank sampah dengan sistem digital yang efisien",
-  keywords: ["Bank Sampah", "Digital", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "React"],
-  authors: [{ name: "Bank Sampah Team" }],
+  keywords: ["Bank Sampah", "Digital", "Desa", "Non-organik", "Organik", "Sampah", "Lingkungan"],
+  authors: [{ name: "Adeas Studio" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Bank Sampah Digital",
-    description: "Sistem manajemen bank sampah modern dan efisien",
-    url: "https://chat.z.ai",
-    siteName: "Bank Sampah",
+    title: "EcoNow",
+    description: "Aplikasi modern untuk mengelola bank sampah dengan sistem digital yang efisien",
+    url: "https://econow.com",
+    siteName: "EcoNow",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bank Sampah Digital",
-    description: "Sistem manajemen bank sampah modern dan efisien",
+    title: "EcoNow",
+    description: "Aplikasi modern untuk mengelola bank sampah dengan sistem digital yang efisien",
   },
 };
 

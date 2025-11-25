@@ -1,11 +1,16 @@
-'use client';
 
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getUserFromToken } from '@/lib/auth';
 
+interface Rank {
+    rank: number;
+    name: string;
+    min: number;
+}
+
 // --- RANKING RULES DEFINITION ---
-const WEIGHT_RANKS = [
+const WEIGHT_RANKS: Rank[] = [
     { rank: 8, name: 'Legenda Hijau', min: 1000 },
     { rank: 7, name: 'Pahlawan Nusantara', min: 500 },
     { rank: 6, name: 'Penjaga Bumi', min: 250 },
@@ -16,7 +21,7 @@ const WEIGHT_RANKS = [
     { rank: 1, name: 'Pemilah', min: 1 },
 ];
 
-const ROUTINE_RANKS = [
+const ROUTINE_RANKS: Rank[] = [
     { rank: 8, name: 'Master Rutin', min: 12 },
     { rank: 7, name: 'Wira Setor', min: 10 },
     { rank: 6, name: 'Pahlawan Konsisten', min: 8 },
@@ -27,7 +32,7 @@ const ROUTINE_RANKS = [
     { rank: 1, name: 'Si Rajin', min: 1 },
 ];
 
-const BALANCE_RANKS = [
+const BALANCE_RANKS: Rank[] = [
     { rank: 8, name: 'Penabung Legenda', min: 1000000 },
     { rank: 7, name: 'Penabung Elite', min: 750000 },
     { rank: 6, name: 'Penabung Utama', min: 500000 },
@@ -39,7 +44,7 @@ const BALANCE_RANKS = [
 ];
 
 // --- CALCULATION LOGIC ---
-function calculateRank(value, ranks) {
+function calculateRank(value: number, ranks: Rank[]) {
     const currentRank = ranks.find(r => value >= r.min) || { rank: 0, name: 'Pemula', min: 0 };
     const nextRank = ranks.find(r => r.rank === currentRank.rank + 1);
 
@@ -62,23 +67,19 @@ function calculateRank(value, ranks) {
 }
 
 // --- API HANDLER ---
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== 'GET') {
-        res.setHeader('Allow', ['GET']);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
-
+export async function GET(request: Request) {
     try {
-        const authHeader = req.headers.authorization;
+        const authHeader = request.headers.get('authorization');
+
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'Otentikasi diperlukan: Token tidak ditemukan.' });
+            return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan: Token tidak ditemukan.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
         const token = authHeader.split(' ')[1];
         const user = await getUserFromToken(token);
 
         if (!user?.id) {
-            return res.status(401).json({ error: 'Otentikasi diperlukan: Token tidak valid.' });
+            return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan: Token tidak valid.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
         const userId = user.id;
@@ -89,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         if (!nasabah) {
-            return res.status(404).json({ error: 'Profil nasabah tidak ditemukan.' });
+            return new NextResponse(JSON.stringify({ error: 'Profil nasabah tidak ditemukan.' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
         }
 
         const thirtyDaysAgo = new Date();
@@ -115,13 +116,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             balance: calculateRank(stats.balance, BALANCE_RANKS),
         };
 
-        res.status(200).json(rankingData);
+        return new NextResponse(JSON.stringify(rankingData), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching ranking data:', error);
         if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-            return res.status(401).json({ error: 'Otentikasi diperlukan: Token tidak valid atau kedaluwarsa.' });
+            return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan: Token tidak valid atau kedaluwarsa.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
-        res.status(500).json({ error: 'Gagal mengambil data peringkat dari server.' });
+        return new NextResponse(JSON.stringify({ error: 'Gagal mengambil data peringkat dari server.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }

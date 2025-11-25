@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, LogIn, UserPlus } from 'lucide-react'
+import TypingAnimation from '@/components/ui/TypingAnimation'
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -134,8 +135,8 @@ export default function AuthPage() {
           <CardHeader className="text-center">
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }}>
               <img src="/logo.svg" alt="Bank Sampah Logo" className="w-24 h-24 mx-auto mb-4" />
-              <CardTitle className="text-3xl font-bold  text-foreground">Selamat Datang</CardTitle>
-              <CardDescription className="text-gray-500">Login atau Register untuk memulai</CardDescription>
+              <TypingAnimation text="Hello Hai" className="text-3xl font-bold text-foreground" />
+              <TypingAnimation text="Login atau Register untuk memulai" className="text-gray-500" />
             </motion.div>
           </CardHeader>
           <CardContent>

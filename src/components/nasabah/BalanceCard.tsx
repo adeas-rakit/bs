@@ -38,7 +38,7 @@ export function BalanceCard({
 
   return (
     <Card 
-      className={`relative overflow-hidden h-full text-white shadow-lg transition-all duration-300 ${color || defaultColor}`}
+      className={`relative flex flex-col justify-between py-4 overflow-hidden h-full text-white shadow-lg transition-all duration-300 ${color || defaultColor}`}
     >
       {/* Background Ornament */}
       <div className="absolute inset-0 z-0 opacity-60">

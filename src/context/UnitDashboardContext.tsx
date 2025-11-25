@@ -18,10 +18,3 @@ export const UnitDashboardProvider = ({ children }: { children: ReactNode }) => 
   );
 };
 
-export const useUnitDashboard = () => {
-  const context = useContext(UnitDashboardContext);
-  if (context === undefined) {
-    throw new Error('useUnitDashboard must be used within a UnitDashboardProvider');
-  }
-  return context;
-};

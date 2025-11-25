@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpRight, Award, Crown } from 'lucide-react';
-import RankingDetails from './RankingDetails'; // Import the new detailed view
+import { ArrowUpRight, Award } from 'lucide-react';
+import RankingDetails from './RankingDetails';
 
-// Interfaces for data structure
+// Interfaces
 interface RankInfo {
   rank: number;
   name: string;
@@ -20,7 +19,12 @@ interface RankingData {
   balance: RankInfo;
 }
 
-// Skeleton Loader for the trigger
+interface RankingDisplayProps {
+  rankingData: RankingData | null;
+  loading: boolean;
+}
+
+// Skeleton Loader
 const RankingTriggerSkeleton = () => (
     <div className="flex items-center justify-between p-4">
         <div>
@@ -31,14 +35,13 @@ const RankingTriggerSkeleton = () => (
     </div>
 );
 
-// The new trigger view
+// Trigger view
 const RankingTriggerView = ({ rankingData, loading }) => {
     if (loading || !rankingData) {
         return <RankingTriggerSkeleton />;
     }
 
     const totalLevel = (rankingData.weight?.rank ?? 0) + (rankingData.routine?.rank ?? 0) + (rankingData.balance?.rank ?? 0);
-
     const ranks = [rankingData.weight, rankingData.routine, rankingData.balance];
     const highestRank = ranks.reduce((max, current) => (current.rank > max.rank ? current : max), ranks[0]);
 
@@ -64,9 +67,8 @@ const RankingTriggerView = ({ rankingData, loading }) => {
 }
 
 // Main Ranking Display Component
-export default function RankingDisplay() {
+export default function RankingDisplay({ rankingData, loading }: RankingDisplayProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const { data: rankingData, loading } = useRealtimeData<RankingData>({ endpoint: '/api/ranking' });
 
   return (
     <div className="mt-6">
@@ -83,7 +85,7 @@ export default function RankingDisplay() {
             </DrawerTrigger>
             <DrawerContent className="h-[100vh] mt-24 flex flex-col bg-white dark:bg-gray-900 text-white rounded-t-3xl"> 
                 <div className="flex-1 overflow-y-auto pt-4">
-                    <RankingDetails />
+                    <RankingDetails rankingData={rankingData} loading={loading} />
                 </div>
             </DrawerContent>
         </Drawer>

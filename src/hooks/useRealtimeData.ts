@@ -62,10 +62,4 @@ export function useRealtimeData<T>({ endpoint, refreshInterval = 30000 }: UseRea
 
   return { data, loading, error, refetch }
 }
-
-export function useRealtimeUpdates(callback: () => void, interval: number = 30000) {
-  useEffect(() => {
-    const intervalId = setInterval(callback, interval)
-    return () => clearInterval(intervalId)
-  }, [callback, interval])
-}
+ 

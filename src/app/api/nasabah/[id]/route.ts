@@ -1,28 +1,32 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getUserFromToken } from '@/lib/auth';
-import { Nasabah } from '@/types';
+import { Nasabah, UserProfile, UserRole } from '@/types';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = request.headers.get('authorization');
+
     if (!authHeader) {
-      return res.status(401).json({ error: 'Otentikasi diperlukan.' });
+      return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
     const token = authHeader.split(' ')[1];
     const user = await getUserFromToken(token);
     if (!user || (user.role !== 'UNIT' && user.role !== 'ADMIN')) {
-      return res.status(403).json({ error: 'Akses ditolak.' });
+      return new NextResponse(JSON.stringify({ error: 'Akses ditolak.' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
   } catch (error) {
-    return res.status(401).json({ error: 'Token tidak valid atau kedaluwarsa.' });
+    return new NextResponse(JSON.stringify({ error: 'Token tidak valid atau kedaluwarsa.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const { id } = req.query;
+  const { id } = params;
 
-  if (req.method !== 'GET' || typeof id !== 'string') {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).json({ error: `Metode tidak diizinkan atau ID tidak valid.` });
+  if (typeof id !== 'string') {
+    return new NextResponse(JSON.stringify({ error: 'ID tidak valid.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
   try {
@@ -35,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { accountNo: identifier },
         select: {
           id: true, accountNo: true, balance: true, totalWeight: true, depositCount: true, unitId: true,
-          user: { select: { id: true, name: true, phone: true, status: true } },
+          user: { select: { id: true, name: true, phone: true, status: true, role: true } },
         },
       });
     } else {
@@ -43,13 +47,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { id: identifier },
         select: {
           id: true, accountNo: true, balance: true, totalWeight: true, depositCount: true, unitId: true,
-          user: { select: { id: true, name: true, phone: true, status: true } },
+          user: { select: { id: true, name: true, phone: true, status: true, role: true } },
         },
       });
     }
 
     if (!nasabahRecord) {
-      return res.status(404).json({ error: 'Nasabah tidak ditemukan dengan identifier yang diberikan.' });
+      return new NextResponse(JSON.stringify({ error: 'Nasabah tidak ditemukan dengan identifier yang diberikan.' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Structure the response to match the canonical Nasabah type
@@ -65,13 +69,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         name: nasabahRecord.user.name,
         phone: nasabahRecord.user.phone,
         status: nasabahRecord.user.status as 'AKTIF' | 'DITANGGUHKAN',
+        role: nasabahRecord.user.role as UserRole,
       },
     };
 
-    res.status(200).json(responseData);
+    return new NextResponse(JSON.stringify(responseData), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error(`[API ERROR] /api/nasabah/${id}:`, error);
-    res.status(500).json({ error: 'Terjadi kesalahan internal saat mengambil data nasabah.' });
+    return new NextResponse(JSON.stringify({ error: 'Terjadi kesalahan internal saat mengambil data nasabah.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }

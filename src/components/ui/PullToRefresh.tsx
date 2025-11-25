@@ -1,128 +1,109 @@
 'use client'
 
-import { useState, useRef, ReactNode, useEffect } from 'react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
-import { ArrowDown, Loader } from 'lucide-react'
+import React, { useState, useRef, useEffect, ReactNode, TouchEvent, useCallback } from 'react';
+import { motion, useAnimation } from 'framer-motion';
+import { ArrowDown, Leaf } from 'lucide-react';
 
 interface PullToRefreshProps {
-  onRefresh: () => Promise<any> | void
-  children: ReactNode
-  loading?: boolean
+  onRefresh: () => Promise<any> | void;
+  children: ReactNode;
+  loading: boolean;
+  activeTab: string;
 }
 
-const PULL_THRESHOLD = 80; // Jarak tarikan dalam piksel sebelum refresh dipicu
-const PULL_RESISTANCE = 0.7; // Faktor resistensi untuk efek tarikan yang lebih alami
-
-export default function PullToRefresh({ onRefresh, children, loading: externalLoading }: PullToRefreshProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const isDragging = useRef(false)
-  const startY = useRef(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const y = useMotionValue(0)
-  const indicatorOpacity = useTransform(y, [0, PULL_THRESHOLD], [0, 1])
-  const indicatorScale = useTransform(y, [0, PULL_THRESHOLD], [0.5, 1])
-  const arrowRotation = useTransform(y, [0, PULL_THRESHOLD], [0, 180])
+const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, children, loading, activeTab }) => {
+  const [isPulling, setIsPulling] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
+  const hasRefreshed = useRef(false);
 
   useEffect(() => {
-    // Efek ini berjalan ketika status loading dari parent berubah.
-    // Kita hanya ingin menganimasikan kembali ketika operasi refresh baru saja selesai.
-    if (!externalLoading && isRefreshing) {
-        animate(y, 0, {
-            type: "spring",
-            damping: 30,
-            stiffness: 400,
-            onComplete: () => {
-                setIsRefreshing(false);
-            }
-        });
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [externalLoading, isRefreshing, y]);
+  }, [activeTab]); // Only scroll to top when the active tab changes
 
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
-
-  if (!isTouchDevice) {
-    return <div className="h-full overflow-y-auto">{children}</div>
-  }
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isRefreshing || (containerRef.current && containerRef.current.scrollTop !== 0)) {
-      return
-    }
-    isDragging.current = true
-    startY.current = e.touches[0].clientY
-  }
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isDragging.current || isRefreshing) return
-
-    const currentY = e.touches[0].clientY
-    const pullDistance = currentY - startY.current
-
-    if (pullDistance > 0) {
-        e.preventDefault() // Mencegah scroll default browser jika kita menarik ke bawah
-        y.set(pullDistance * PULL_RESISTANCE)
-    }
-  }
-
-  const handleTouchEnd = async () => {
-    if (!isDragging.current || isRefreshing) return;
-    isDragging.current = false;
-
-    const currentY = y.get();
-
-    if (currentY >= PULL_THRESHOLD) {
-        setIsRefreshing(true);
-        // Animasikan ke posisi indikator refresh
-        animate(y, PULL_THRESHOLD, { type: "spring", damping: 30, stiffness: 400 });
-
-        try {
-            await onRefresh();
-            // Jika berhasil, useEffect akan menangani animasi kembali.
-        } catch (error) {
-            console.error("Gagal menyegarkan:", error);
-            // Jika refresh gagal, animasikan kembali segera
-            animate(y, 0, {
-                type: "spring",
-                damping: 30,
-                stiffness: 400,
-                onComplete: () => {
-                    setIsRefreshing(false);
-                }
-            });
-        }
+  useEffect(() => {
+    if (loading) {
+      hasRefreshed.current = true;
+      controls.start({ y: 60, transition: { type: 'spring', stiffness: 300, damping: 30 } });
     } else {
-        // Animasikan kembali jika tidak ditarik cukup jauh
-        animate(y, 0, { type: "spring", damping: 30, stiffness: 400 });
+      if (hasRefreshed.current) {
+        controls.start({ y: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } });
+      }
     }
-  };
+  }, [loading, controls]);
+
+  const handleStart = useCallback((clientY: number) => {
+    if (loading || (containerRef.current && containerRef.current.scrollTop !== 0)) {
+      return;
+    }
+    setStartY(clientY);
+    setIsPulling(true);
+  }, [loading]);
+
+  const handleMove = useCallback((clientY: number) => {
+    if (!isPulling || loading) return;
+    const distance = Math.max(0, clientY - startY);
+    const dampenedDistance = Math.pow(distance, 0.85);
+    setPullDistance(dampenedDistance);
+    controls.set({ y: dampenedDistance });
+  }, [isPulling, startY, controls, loading]);
+
+  const handleEnd = useCallback(() => {
+    if (!isPulling || loading) return;
+    setIsPulling(false);
+
+    if (pullDistance > 100) {
+      onRefresh();
+    } else {
+      controls.start({ y: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } });
+    }
+    
+    setPullDistance(0);
+    setStartY(0);
+  }, [isPulling, pullDistance, onRefresh, controls, loading]);
 
   return (
-    <div
-      ref={containerRef}
+    <div 
+      ref={containerRef} 
       className="h-full overflow-y-auto relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ touchAction: 'pan-y' }}
+      style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+      onTouchStart={(e) => handleStart(e.touches[0].clientY)}
+      onTouchMove={(e) => handleMove(e.touches[0].clientY)}
+      onTouchEnd={handleEnd}
+      onMouseDown={(e) => handleStart(e.clientY)}
+      onMouseMove={(e) => isPulling && handleMove(e.clientY)}
+      onMouseUp={handleEnd}
+      onMouseLeave={() => isPulling && handleEnd()}
     >
-      <div className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none" style={{ height: PULL_THRESHOLD, zIndex: 1 }}>
-          <motion.div 
-            style={{ opacity: indicatorOpacity, scale: indicatorScale }}
-            className="flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-md"
-          >
-            {isRefreshing || externalLoading ? (
-                <Loader className="animate-spin text-green-600" size={24} />
-            ) : (
-                <motion.div style={{ rotate: arrowRotation }}>
-                    <ArrowDown className="text-gray-500" size={24} />
-                </motion.div>
-            )}
-          </motion.div>
-      </div>
-      <motion.div style={{ y }}>
-          {children}
+      <motion.div 
+        className="absolute top-[-60px] left-0 right-0 flex items-center justify-center pointer-events-none"
+        style={{ height: '60px', zIndex: 10 }}
+        animate={controls}
+        initial={{ y: 0 }}
+      >
+        <div className="p-4 bg-white rounded-full shadow-lg">
+          {loading ? (
+            <Leaf className="animate-spin text-green-600" />
+          ) : (
+            <motion.div
+              animate={{ rotate: pullDistance > 100 ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ArrowDown className="text-gray-500" />
+            </motion.div>
+          )}
+        </div>
       </motion.div>
+      
+      <div className="relative z-0" style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+        {children}
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default PullToRefresh;

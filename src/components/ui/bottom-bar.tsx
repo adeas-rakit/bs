@@ -10,6 +10,10 @@ interface NavItem {
   name: string
   value: string
   icon: React.ElementType
+  bgColor: string
+  hoverBgColor: string
+  borderColor: string
+  hoverBorderColor: string
   hidden?: boolean
 }
 
@@ -21,8 +25,6 @@ interface BottomBarProps {
   onMenuClick: () => void
 }
 
-// We can show a maximum of 4 items directly in the bar.
-// The 5th slot will always be the "More" button.
 const MAX_VISIBLE_ITEMS = 3;
 
 export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, onMenuClick }: BottomBarProps) {
@@ -34,7 +36,7 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
 
   const handleTabChange = (tab: string) => {
     onTabChange(tab);
-    setIsMoreMenuOpen(false); // Close sheet on selection
+    setIsMoreMenuOpen(false);
   }
   
   const handleMenuClick = () => {
@@ -52,28 +54,39 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
   }
   
   const BarButton = ({ item, isActive }: { item: NavItem, isActive: boolean }) => (
-      <Button
-        variant="ghost"
-        className={`flex-1 flex flex-col items-center justify-center h-full rounded-none text-xs p-1 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-        onClick={() => handleTabChange(item.value)}
-      >
-        <item.icon className="h-5 w-5 mb-1" />
-        <span className="w-full text-center truncate">{item.name}</span>
-      </Button>
+    <Button
+      variant="ghost"
+      className={`flex h-auto w-20 flex-col items-center justify-center rounded-none bg-transparent p-1 text-xs focus-visible:ring-0 group transition-all duration-200 hover:bg-transparent`}
+      onClick={() => handleTabChange(item.value)}
+    >
+      <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-200 ${isActive ? `${item.hoverBgColor} ${item.hoverBorderColor}` : `${item.bgColor} ${item.borderColor}`} group-hover:${item.hoverBgColor} group-hover:${item.hoverBorderColor}`}>
+        <item.icon className={`h-6 w-6 transition-all duration-200 ${isActive ? 'text-white' : 'text-slate-500'} ${isActive ? 'group-hover:text-white' : 'group-hover:text-slate-800'}`} strokeWidth={isActive ? 2.5 : 2} />
+      </div>
+      <span className={`text-xs mt-0 w-full truncate text-center font-bold transition-all duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground'} group-hover:text-primary`}>
+        {item.name}
+      </span>
+    </Button>
   )
 
   return (
-    <div className="fixed bottom-0 left-0 z-40 w-full h-16 bg-background border-t lg:hidden">
-      <div className="flex h-full w-full mx-auto">
+    <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit lg:hidden">
+      <div className="flex h-auto items-center space-x-1 py-2 px-4 rounded-full border bg-background p-1 shadow-lg">
         {visibleItems.map((item) => (
           <BarButton key={item.value} item={item} isActive={activeTab === item.value} />
         ))}
         
         <Sheet open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" className="flex-1 flex flex-col items-center justify-center h-full rounded-none text-xs p-1 text-muted-foreground">
-              <MoreHorizontal className="h-5 w-5 mb-1" />
-              <span className="w-full text-center">Lainnya</span>
+            <Button
+              variant="ghost"
+              className="flex h-auto w-20 flex-col items-center justify-center rounded-none bg-transparent p-1 text-xs focus-visible:ring-0 hover:bg-transparent"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <MoreHorizontal className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <span className="mt-0 w-full truncate text-center font-medium text-muted-foreground">
+                Lainnya
+              </span>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-lg w-full">

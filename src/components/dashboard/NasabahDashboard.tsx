@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/ui/sidebar';
 import BottomBar from '@/components/ui/bottom-bar';
@@ -59,6 +59,20 @@ interface User {
   role: 'NASABAH' | 'UNIT' | 'ADMIN';
 }
 
+interface Rank {
+  rank: number;
+  name: string;
+  value: number;
+  nextRank: { name: string; target: number; } | null;
+  progress: number;
+}
+
+interface RankingData {
+  weight: Rank;
+  routine: Rank;
+  balance: Rank;
+}
+
 // Skeleton Component
 const NasabahDashboardSkeleton = () => (
   <div className="p-4 sm:p-6 lg:p-8">
@@ -75,12 +89,13 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
 
   const { data: dashboardData, loading: loadingDashboard, refetch: refetchDashboard } = useRealtimeData<DashboardData>({ endpoint: '/api/dashboard' });
   const { data: withdrawalsData, loading: loadingWithdrawals, refetch: refetchWithdrawals } = useRealtimeData<{ withdrawals: WithdrawalRequest[] }>({ endpoint: '/api/withdrawals' });
+  const { data: rankingData, loading: loadingRanking, refetch: refetchRanking } = useRealtimeData<RankingData>({ endpoint: '/api/ranking' });
 
   const withdrawalRequests = withdrawalsData?.withdrawals || [];
-  const loading = loadingDashboard || loadingWithdrawals;
+  const loading = loadingDashboard || loadingWithdrawals || loadingRanking;
 
   const refetchAll = async () => {
-    await Promise.all([refetchDashboard(), refetchWithdrawals()]);
+    await Promise.all([refetchDashboard(), refetchWithdrawals(), refetchRanking()]);
   };
 
   const handleLogout = () => {
@@ -99,12 +114,12 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   };
 
   const navItems = useMemo(() => [
-    { name: 'Iktisar', value: 'overview', icon: Home },
-    { name: 'Transaksi', value: 'transactions', icon: TrendingUp },
-    { name: 'Penarikan', value: 'withdrawals', icon: Landmark },
-    { name: 'Notifikasi', value: 'notifications', icon: Bell, hidden: true },
-    { name: 'Kartu Digital', value: 'card', icon: QrCode },
-    { name: 'Pengaturan', value: 'settings', icon: Settings },
+    { name: 'Iktisar', value: 'overview', icon: Home, bgColor: 'bg-red-50', hoverBgColor: 'bg-red-600', borderColor: 'border-red-200', hoverBorderColor: 'border-red-600' },
+    { name: 'Transaksi', value: 'transactions', icon: TrendingUp, bgColor: 'bg-green-50', hoverBgColor: 'bg-green-600', borderColor: 'border-green-200', hoverBorderColor: 'border-green-600' },
+    { name: 'Penarikan', value: 'withdrawals', icon: Landmark, bgColor: 'bg-purple-50', hoverBgColor: 'bg-purple-600', borderColor: 'border-purple-200', hoverBorderColor: 'border-purple-600' },
+    { name: 'Notifikasi', value: 'notifications', icon: Bell, hidden: true, bgColor: 'bg-yellow-50', hoverBgColor: 'bg-yellow-600', borderColor: 'border-yellow-200', hoverBorderColor: 'border-yellow-600' },
+    { name: 'Kartu Digital', value: 'card', icon: QrCode, bgColor: 'bg-orange-50', hoverBgColor: 'bg-orange-600', borderColor: 'border-orange-200', hoverBorderColor: 'border-orange-600' },
+    { name: 'Pengaturan', value: 'settings', icon: Settings, bgColor: 'bg-gray-50', hoverBgColor: 'bg-gray-600', borderColor: 'border-gray-200', hoverBorderColor: 'border-gray-600' },
   ], []);
 
   const availableNavItems = useMemo(() => {
@@ -117,6 +132,8 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   const renderContent = () => {
     if (!user) { return <NasabahDashboardSkeleton />; }
     if (loading && !dashboardData && user.unitId) { return <NasabahDashboardSkeleton />; }
+
+    const weightGoal = rankingData?.weight?.nextRank?.target ?? 100;
 
     return (
         <AnimatePresence mode="wait">
@@ -140,10 +157,10 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
                                 withdrawalRequests={withdrawalRequests}
                                 onSwitchToWithdrawals={() => setActiveTab('withdrawals')}
                                 onSwitchToTransactions={() => setActiveTab('transactions')}
+                                weightGoal={weightGoal}
                             />
-                            <RankingDisplay />
+                            <RankingDisplay rankingData={rankingData} loading={loadingRanking} />
                             {dashboardData.recentTransactions.length > 0 ? <RecentActivity recentTransactions={dashboardData.recentTransactions} /> : <FunFactCard />}
-
                         </>
                     ) : !user.unitId ? (
                         <div className="text-center p-8 bg-gray-100 rounded-lg">
@@ -165,9 +182,9 @@ export default function NasabahDashboard({ user }: { user: User | null }) {
   return (
     <div className="min-h-screen flex">
       <Sidebar user={user} navItems={availableNavItems} activeTab={activeTab} onTabChange={setActiveTab} onLogout={handleLogout} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-      <main className="flex-1 h-screen overflow-hidden">
-        <PullToRefresh onRefresh={refetchAll} loading={loading}>
-            <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+      <main className="flex-1 h-screen overflow-y-auto">
+        <PullToRefresh onRefresh={refetchAll} loading={loading} activeTab={activeTab}>
+            <div className="p-4 sm:p-6 lg:p-8 pb-40 lg:pb-8">
                 <UserHeader user={user} />
                 {renderContent()}
             </div>

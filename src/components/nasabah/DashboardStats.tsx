@@ -37,6 +37,7 @@ interface DashboardStatsProps {
   withdrawalRequests: WithdrawalRequest[];
   onSwitchToWithdrawals: () => void;
   onSwitchToTransactions: () => void;
+  weightGoal: number;
 }
 
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -60,6 +61,7 @@ export default function DashboardStats({
   withdrawalRequests = [],
   onSwitchToWithdrawals,
   onSwitchToTransactions,
+  weightGoal,
 }: DashboardStatsProps) {
   const allBalances = [{ unitId: 'overall', unitName: 'Keseluruhan', balance: overall.balance }, ...nasabahUnitBalances];
   const [activeIndex, setActiveIndex] = useState(0);
@@ -70,7 +72,6 @@ export default function DashboardStats({
 
   const selectedUnitId = allBalances[activeIndex]?.unitId || 'overall';
   const statsToDisplay = selectedUnitId === 'overall' ? overall : byUnit?.[selectedUnitId] || { balance: 0, totalWeight: 0, totalWithdrawals: 0 };
-  const weightGoal = 100; // Target 100 kg
   const weightProgress = (statsToDisplay.totalWeight / weightGoal) * 100;
 
   return (
@@ -104,7 +105,7 @@ export default function DashboardStats({
                       handleCardSwipe();
                     }
                   }}
-                  className={`absolute w-full max-w-lg h-56 bg-gradient-to-br ${generateColor(index)} rounded-2xl shadow-xl`}
+                  className={`absolute w-full max-w-lg h-60 bg-gradient-to-br ${generateColor(index)} rounded-2xl shadow-xl`}
                 >
                   <BalanceCard
                     key={item.unitId} // Add key to ensure re-render
@@ -125,7 +126,7 @@ export default function DashboardStats({
           </div>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="space-y-4">
+        <motion.div variants={itemVariants} className="space-y-4 grid grid-cols-2 gap-3 md:grid-cols-1">
           <motion.div whileTap={{ scale: 0.98 }} onClick={onSwitchToTransactions} className="cursor-pointer">
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -133,7 +134,7 @@ export default function DashboardStats({
                 <ArrowRight className="h-4 w-4 text-gray-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{formatWeight(statsToDisplay.totalWeight)}</p>
+                <div className="text-2xl font-bold">{formatWeight(statsToDisplay.totalWeight)}</div>
                 <Progress value={weightProgress} className="mt-2" />
                 <p className="text-xs text-muted-foreground mt-1">Target: {formatWeight(weightGoal)}</p>
               </CardContent>
@@ -147,6 +148,8 @@ export default function DashboardStats({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(statsToDisplay.totalWithdrawals)}</div>
+                <Progress value={100} className="mt-2" />
+                <p className="text-xs text-muted-foreground mt-1">{statsToDisplay.totalWithdrawals>50000?"Kamu Luar Biasa !":"Hasilkan Lebih"}</p>
               </CardContent>
             </Card>
           </motion.div>
