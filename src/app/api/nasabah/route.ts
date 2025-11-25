@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+// Helper to get token from request
 function getTokenFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -13,6 +14,7 @@ function getTokenFromRequest(request: NextRequest) {
   return request.cookies.get('token')?.value;
 }
 
+// Helper to authenticate user
 async function authenticateUser(request: NextRequest) {
   const token = getTokenFromRequest(request);
   if (!token) throw new Error('Token tidak ditemukan');
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
-    let where: any = {};
+    const baseWhere: any = {};
     const andConditions: any[] = [];
 
     if (statusParam && Object.values(UserStatus).includes(statusParam as UserStatus)) {
@@ -52,9 +54,9 @@ export async function GET(request: NextRequest) {
     if (search) {
       andConditions.push({
         OR: [
-          { user: { name: { contains: search } } },
-          { accountNo: { contains: search } },
-          { user: { phone: { contains: search } } },
+          { user: { name: { contains: search, mode: 'insensitive' } } },
+          { accountNo: { contains: search, mode: 'insensitive' } },
+          { user: { phone: { contains: search, mode: 'insensitive' } } },
         ],
       });
     }
@@ -62,19 +64,19 @@ export async function GET(request: NextRequest) {
     if (user.role === 'UNIT' && user.unitId) {
       andConditions.push({
         OR: [
-          { unitId: user.unitId },
-          { transactions: { some: { unitId: user.unitId } } }
-        ]
-      })
-    }
-    
-    if (andConditions.length > 0) {
-      where.AND = andConditions;
+          { user: { unitId: user.unitId } },
+          { transactions: { some: { unitId: user.unitId } } },
+        ],
+      });
     }
 
-    const [nasabah, total] = await Promise.all([
+    if (andConditions.length > 0) {
+      baseWhere.AND = andConditions;
+    }
+
+    const [nasabah, total] = await db.$transaction([
       db.nasabah.findMany({
-        where,
+        where: baseWhere,
         include: {
           user: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true, unitId: true } },
           unit: { select: { id: true, name: true } },
@@ -83,58 +85,83 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      db.nasabah.count({ where })
+      db.nasabah.count({ where: baseWhere }),
     ]);
 
     const nasabahIds = nasabah.map(n => n.id);
+    let finalNasabah = [...nasabah];
 
+    if (user.role === 'UNIT' && user.unitId && nasabahIds.length > 0) {
+      const unitNasabahData = await db.unitNasabah.findMany({
+        where: {
+          unitId: user.unitId,
+          nasabahId: { in: nasabahIds },
+        },
+        select: { nasabahId: true, balance: true, totalWeight: true },
+      });
+
+      const unitNasabahMap = unitNasabahData.reduce((acc, un) => {
+        acc[un.nasabahId] = { balance: un.balance, totalWeight: un.totalWeight };
+        return acc;
+      }, {} as Record<string, { balance: number; totalWeight: number }>);
+
+      finalNasabah = nasabah.map(n => ({
+        ...n,
+        balance: unitNasabahMap[n.id]?.balance ?? 0,
+        totalWeight: unitNasabahMap[n.id]?.totalWeight ?? 0,
+      }));
+    }
+
+    // This part remains for Admin or for additional stats if needed by Unit
     const [depositsByUnit, allUnits] = await Promise.all([
-      db.transaction.groupBy({
-          by: ['nasabahId', 'unitId'],
-          where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
-          _count: { id: true },
-      }),
-      db.unit.findMany({ select: { id: true, name: true, minWithdrawal: true } })
+        db.transaction.groupBy({
+            by: ['nasabahId', 'unitId'],
+            where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
+            _count: { id: true },
+        }),
+        db.unit.findMany({ select: { id: true, name: true, minWithdrawal: true } })
     ]);
 
     const unitMap = allUnits.reduce((acc, unit) => {
-      acc[unit.id] = { name: unit.name, minWithdrawal: unit.minWithdrawal };
-      return acc;
+        acc[unit.id] = { name: unit.name, minWithdrawal: unit.minWithdrawal };
+        return acc;
     }, {} as Record<string, { name: string, minWithdrawal: number }>);
 
     const depositStatsMap = nasabahIds.reduce((acc, id) => {
-      acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
-      return acc;
+        acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
+        return acc;
     }, {} as Record<string, { totalDepositCount: number, depositsByUnit: any[] }>);
 
     depositsByUnit.forEach(group => {
-      if (group.nasabahId && group.unitId) {
-        const nasabahStat = depositStatsMap[group.nasabahId];
-        const count = group._count.id;
-        const unitInfo = unitMap[group.unitId] || { name: 'Unknown Unit', minWithdrawal: 0 };
-        nasabahStat.totalDepositCount += count;
-        nasabahStat.depositsByUnit.push({
-          unitId: group.unitId,
-          unitName: unitInfo.name,
-          minWithdrawal: unitInfo.minWithdrawal,
-          count: count,
-        });
-      }
+        if (group.nasabahId && group.unitId) {
+            const nasabahStat = depositStatsMap[group.nasabahId];
+            if (nasabahStat) {
+                const count = group._count.id;
+                const unitInfo = unitMap[group.unitId] || { name: 'Unknown Unit', minWithdrawal: 0 };
+                nasabahStat.totalDepositCount += count;
+                nasabahStat.depositsByUnit.push({
+                    unitId: group.unitId,
+                    unitName: unitInfo.name,
+                    minWithdrawal: unitInfo.minWithdrawal,
+                    count: count,
+                });
+            }
+        }
     });
 
-    const augmentedNasabah = nasabah.map(n => ({
-      ...n,
-      ...(depositStatsMap[n.id] || { totalDepositCount: 0, depositsByUnit: [] }),
+    const augmentedNasabah = finalNasabah.map(n => ({
+        ...n,
+        ...(depositStatsMap[n.id] || { totalDepositCount: 0, depositsByUnit: [] }),
     }));
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       nasabah: augmentedNasabah,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
-    
+
   } catch (error: any) {
     console.error('Get nasabah error:', error);
     return NextResponse.json(
@@ -167,12 +194,12 @@ export async function PUT(request: NextRequest) {
     }
 
     if (user.role === 'UNIT' && user.unitId) {
-      const isLocal = nasabah.unitId === user.unitId;
-      const hasTransacted = await db.transaction.findFirst({
+      const isRegisteredHere = nasabah.unitId === user.unitId;
+      const hasTransactedHere = await db.transaction.findFirst({
         where: { nasabahId: id, unitId: user.unitId }
       });
 
-      if (!isLocal && !hasTransacted) {
+      if (!isRegisteredHere && !hasTransactedHere) {
         return NextResponse.json({ error: 'Anda tidak memiliki izin untuk mengelola nasabah ini' }, { status: 403 });
       }
     }
@@ -201,7 +228,7 @@ export async function PUT(request: NextRequest) {
             data: userDataToUpdate,
         });
 
-        if (unitId) {
+        if (unitId && user.role === 'ADMIN') { // Only admin can change the main unit
             await tx.nasabah.update({
                 where: { id: nasabah.id },
                 data: { unit: { connect: { id: unitId } } },
