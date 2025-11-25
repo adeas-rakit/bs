@@ -1,11 +1,10 @@
 import { db } from '@/lib/db';
-import { UserStatus } from '@prisma/client';
+import { TransactionType, UserStatus } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Helper to get token from request
 function getTokenFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -14,7 +13,6 @@ function getTokenFromRequest(request: NextRequest) {
   return request.cookies.get('token')?.value;
 }
 
-// Helper to authenticate user
 async function authenticateUser(request: NextRequest) {
   const token = getTokenFromRequest(request);
   if (!token) throw new Error('Token tidak ditemukan');
@@ -92,27 +90,55 @@ export async function GET(request: NextRequest) {
     let finalNasabah = [...nasabah];
 
     if (user.role === 'UNIT' && user.unitId && nasabahIds.length > 0) {
-      const unitNasabahData = await db.unitNasabah.findMany({
+      const transactions = await db.transaction.groupBy({
+        by: ['nasabahId', 'type'],
         where: {
-          unitId: user.unitId,
           nasabahId: { in: nasabahIds },
+          unitId: user.unitId,
+          OR: [
+            { type: 'DEPOSIT' },
+            { type: 'WITHDRAWAL', status: 'SUCCESS' },
+          ],
         },
-        select: { nasabahId: true, balance: true, totalWeight: true },
+        _sum: { totalAmount: true },
       });
 
-      const unitNasabahMap = unitNasabahData.reduce((acc, un) => {
-        acc[un.nasabahId] = { balance: un.balance, totalWeight: un.totalWeight };
+      const balanceMap = nasabahIds.reduce((acc, id) => {
+        acc[id] = { deposit: 0, withdrawal: 0 };
         return acc;
-      }, {} as Record<string, { balance: number; totalWeight: number }>);
+      }, {} as Record<string, { deposit: number, withdrawal: number }>);
 
-      finalNasabah = nasabah.map(n => ({
-        ...n,
-        balance: unitNasabahMap[n.id]?.balance ?? 0,
-        totalWeight: unitNasabahMap[n.id]?.totalWeight ?? 0,
-      }));
+      transactions.forEach(t => {
+        if (t.nasabahId) {
+          if (t.type === 'DEPOSIT') {
+            balanceMap[t.nasabahId].deposit = t._sum.totalAmount || 0;
+          } else if (t.type === 'WITHDRAWAL') {
+            balanceMap[t.nasabahId].withdrawal = t._sum.totalAmount || 0;
+          }
+        }
+      });
+
+      const unitNasabahData = await db.unitNasabah.findMany({
+        where: { unitId: user.unitId, nasabahId: { in: nasabahIds } },
+        select: { nasabahId: true, totalWeight: true },
+      });
+
+      const weightMap = unitNasabahData.reduce((acc, un) => {
+        acc[un.nasabahId] = un.totalWeight || 0;
+        return acc;
+      }, {} as Record<string, number>);
+
+      finalNasabah = nasabah.map(n => {
+        const deposits = balanceMap[n.id]?.deposit ?? 0;
+        const withdrawals = balanceMap[n.id]?.withdrawal ?? 0;
+        return {
+          ...n,
+          balance: deposits - withdrawals,
+          totalWeight: weightMap[n.id] || 0,
+        };
+      });
     }
 
-    // This part remains for Admin or for additional stats if needed by Unit
     const [depositsByUnit, allUnits] = await Promise.all([
         db.transaction.groupBy({
             by: ['nasabahId', 'unitId'],

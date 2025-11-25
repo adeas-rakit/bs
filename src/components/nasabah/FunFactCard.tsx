@@ -2,24 +2,15 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FUN_FACTS } from '@/lib/constants';
 import { motion } from 'framer-motion';
 import { Lightbulb } from 'lucide-react';
 import { useMemo } from 'react';
 
-const funFacts = [
-    "Mendaur ulang 1 botol plastik dapat menghemat energi yang cukup untuk menyalakan bola lampu 60 watt selama 6 jam.",
-    "Industri daur ulang di Indonesia berhasil mengurangi emisi karbon dioksida setara dengan menanam 1,5 juta pohon setiap tahun.",
-    "Aluminium dapat didaur ulang tanpa henti tanpa kehilangan kualitasnya. Mendaur ulang kaleng aluminium menghemat 95% energi dibandingkan membuatnya dari bahan mentah.",
-    "Untuk setiap ton kertas yang didaur ulang, kita menyelamatkan sekitar 17 pohon, 7.000 galon air, dan 463 galon minyak.",
-    "Kaca 100% dapat didaur ulang dan dapat didaur ulang tanpa henti tanpa kehilangan kualitas atau kemurniannya.",
-    "Lebih dari 60% sampah yang berakhir di tempat sampah sebenarnya bisa didaur ulang.",
-    "Mendaur ulang satu kaleng aluminium menghemat energi yang cukup untuk menyalakan TV selama tiga jam.",
-];
-
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
 export default function FunFactCard() {
-    const fact = useMemo(() => funFacts[Math.floor(Math.random() * funFacts.length)], []);
+    const fact = useMemo(() => FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)], []);
 
     return (
         <motion.div variants={itemVariants} className="mt-6">
