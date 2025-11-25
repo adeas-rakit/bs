@@ -1,214 +1,309 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { 
-  Check, 
-  X, 
-  User, 
-  Calendar, 
-  DollarSign, 
-  CircleDollarSign,
-  Info
-} from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Input } from '@/components/ui/input'
+import { Combobox } from '@/components/ui/combobox'
 import { toast } from 'sonner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Check, X, Loader2, Landmark, Calendar, CircleDollarSign, Info } from 'lucide-react'
+import { InfoCard } from '@/components/ui/InfoCard'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 interface WithdrawalRequest {
   id: string
+  amount: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  rejectionReason?: string | null;
+  createdAt: string
   nasabah: {
     id: string
+    accountNo: string
     user: {
       name: string
     }
-    accountNo: string
   }
-  amount: number
-  status: string
-  createdAt: string
 }
 
-interface WithdrawalManagementProps {
-  onUpdate: () => void
+const statusMapping = {
+    PENDING: { text: 'Tertunda', variant: 'secondary' as const },
+    APPROVED: { text: 'Disetujui', variant: 'default' as const },
+    REJECTED: { text: 'Ditolak', variant: 'destructive' as const },
 }
 
-const WithdrawalManagementSkeleton = () => (
+const WithdrawalRequestsManagementSkeleton = () => (
     <div className="space-y-4">
-        <div>
-            <Skeleton className="h-7 w-64 mb-2" />
-            <Skeleton className="h-4 w-full" />
-        </div>
-        <div className="space-y-4 pr-4">
-            {[...Array(2)].map((_, i) => (
-                <Card key={i}>
-                    <CardContent className="p-4 flex justify-between items-center">
-                        <div className="space-y-2 w-full">
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-5 w-5 rounded-full" />
-                                <Skeleton className="h-6 w-1/2" />
-                            </div>
-                            <Skeleton className="h-4 w-1/3" />
-                            <Skeleton className="h-5 w-1/4" />
-                            <Skeleton className="h-4 w-1/2" />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Skeleton className="h-9 w-24" />
-                            <Skeleton className="h-9 w-24" />
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+        {[...Array(3)].map((_, i) => (
+            <div key={i} className="p-4 border rounded-lg shadow-sm bg-white">
+                <div className="flex items-start mb-4">
+                    <Skeleton className="w-10 h-10 mr-4 rounded-lg" />
+                    <div className="flex-1">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </div>
+                <div className="flex gap-2">
+                    <Skeleton className="h-9 w-24 rounded-md" />
+                    <Skeleton className="h-9 w-24 rounded-md" />
+                </div>
+            </div>
+        ))}
     </div>
 );
 
-export default function WithdrawalManagement({ onUpdate }: WithdrawalManagementProps) {
+export default function WithdrawalRequestsManagement() {
   const [requests, setRequests] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [isConfirming, setIsConfirming] = useState(false)
-  const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null)
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null)
+  const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('PENDING') // Default to PENDING
+  
+  const [isRejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [currentRequest, setCurrentRequest] = useState<WithdrawalRequest | null>(null);
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true)
+  const fetchRequests = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/units/withdrawals', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(`/api/units/withdrawals?status=${statusFilter}`, { 
+        headers: { 'Authorization': `Bearer ${token}` } 
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRequests(data.withdrawals)
-      } else {
-        const data = await response.json()
-        toast.error("Error", { description: data.error || "Gagal memuat permintaan." })
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal memuat permintaan penarikan');
       }
-    } catch (error) {
-      toast.error("Error", { description: "Terjadi kesalahan saat memuat data." })
+      const data = await response.json()
+      setRequests(data.withdrawals || [])
+    } catch (error: any) {
+      toast.error("Error memuat data", { description: error.message })
+      setRequests([]);
     } finally {
       setLoading(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
-    fetchRequests()
-  }, [fetchRequests])
+    fetchRequests();
+  }, [statusFilter]);
 
-  const handleAction = async () => {
-    if (!selectedRequest || !actionType) return
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
 
-    setIsConfirming(true)
-    const loadingToast = toast.loading("Memproses permintaan...")
+  const processWithdrawalRequest = async (action: 'approve' | 'reject') => {
+    if (!currentRequest) return;
+
+    setActionLoading(prev => ({...prev, [currentRequest.id]: true}))
+    const loadingToast = toast.loading(`Memproses permintaan...`)
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/withdrawals/${selectedRequest.id}/${actionType}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      )
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success("Berhasil", { id: loadingToast, description: data.message })
-        fetchRequests()
-        onUpdate() // This will trigger a refresh on the parent component if needed
-      } else {
-        toast.error("Gagal", { id: loadingToast, description: data.error })
+      const url = '/api/units/withdrawals';
+      
+      let payload: any = { id: currentRequest.id, action };
+      if (action === 'reject') {
+        payload.rejectionReason = rejectionReason;
       }
-    } catch (error) {
-      toast.error("Error", { id: loadingToast, description: "Terjadi kesalahan di sisi klien." })
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      })
+
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || "Gagal memproses permintaan");
+
+      toast.success("Sukses", { id: loadingToast, description: resData.message })
+      
+      if (action === 'approve') setApproveDialogOpen(false);
+      if (action === 'reject') setRejectDialogOpen(false);
+
+      fetchRequests();
+
+    } catch (error: any) {
+      toast.error("Gagal", { id: loadingToast, description: error.message })
     } finally {
-      setIsConfirming(false)
-      setSelectedRequest(null)
-      setActionType(null)
+      if (currentRequest) {
+        setActionLoading(prev => ({...prev, [currentRequest.id]: false}))
+      }
     }
   }
 
-  const openConfirmDialog = (request: WithdrawalRequest, type: 'approve' | 'reject') => {
-    setSelectedRequest(request)
-    setActionType(type)
-  }
+  const handleOpenDialog = (request: WithdrawalRequest, type: 'approve' | 'reject') => {
+    setCurrentRequest(request);
+    if (type === 'approve') {
+      setApproveDialogOpen(true);
+    } else {
+      setRejectionReason("");
+      setRejectDialogOpen(true);
+    }
+  };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
-  }
+  const handleConfirmRejection = () => {
+    if (rejectionReason.trim().length >= 5) {
+      processWithdrawalRequest('reject');
+    } else {
+        toast.warning("Alasan Diperlukan", { description: "Mohon isi alasan penolakan (minimal 5 karakter)."});
+    }
+  };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-  }
+  const handleConfirmApprove = () => {
+    processWithdrawalRequest('approve');
+  };
 
-  if (loading) {
-    return <WithdrawalManagementSkeleton />
-  }
+  const filteredRequests = useMemo(() => {
+    if (!Array.isArray(requests)) return [];
+    
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+
+    const filtered = requests.filter(req => {
+      const name = req.nasabah?.user?.name?.toLowerCase() || '';
+      const accountNo = req.nasabah?.accountNo?.toLowerCase() || '';
+      return name.includes(lowercasedSearchTerm) || accountNo.includes(lowercasedSearchTerm);
+    });
+
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [requests, searchTerm]);
+  
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Permintaan Penarikan Saldo</h2>
-        <p className="text-gray-500">Setujui atau tolak permintaan penarikan dari nasabah yang pernah menabung di unit Anda.</p>
-      </div>
-      <ScrollArea className="h-[60vh]">
-        <div className="space-y-4">
-          {requests.length > 0 ? requests.map((request) => (
-            <Card key={request.id}>
-              <CardContent className="p-4 flex justify-between items-center">
-                <div className="space-y-1">
-                    <span className="font-semibold flex items-center gap-2"><User className="h-5 w-5 text-green-600"/>{request.nasabah.user.name}</span>
-                    <p className="text-sm text-gray-500">No. Rek: {request.nasabah.accountNo}</p>
-                    <div className="text-sm  text-foreground font-bold flex items-center gap-2">
-                        <span>{formatCurrency(request.amount)}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-2">
-                        <Calendar className="h-4 w-4"/>
-                        <span>Dibuat pada {formatDate(request.createdAt)}</span>
-                    </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => openConfirmDialog(request, 'approve')}><Check className="h-4 w-4 mr-2"/>Setujui</Button>
-                  <Button size="sm" variant="destructive" onClick={() => openConfirmDialog(request, 'reject')}><X className="h-4 w-4 mr-2"/>Tolak</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )) : (
-            <EmptyState 
-              icon={<CircleDollarSign />}
-              title="Tidak Ada Permintaan Penarikan"
-              description="Saat ini tidak ada permintaan penarikan yang menunggu persetujuan."
-            />
-          )}
+        <h1 className="text-2xl font-bold text-foreground">Kelola Penarikan Saldo</h1>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 border rounded-lg bg-gray-50">
+          <Input
+            placeholder="Cari Nama/No. Rekening..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="sm:col-span-2"
+          />
+          <Combobox
+            options={[
+              { label: "Tertunda", value: "PENDING" },
+              { label: "Disetujui", value: "APPROVED" },
+              { label: "Ditolak", value: "REJECTED" },
+              { label: "Semua Status", value: "all" },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Filter Status"
+          />
         </div>
-      </ScrollArea>
 
-      <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+        {loading ? (
+          <WithdrawalRequestsManagementSkeleton />
+        ) : (
+          <div className="space-y-4">
+              {filteredRequests.length > 0 ? filteredRequests.map((req) => (
+                <InfoCard
+                    key={req.id}
+                    id={req.id}
+                    title={req.nasabah?.user?.name || 'Nama Tidak Tersedia'}
+                    subtitle={`No. Rek: ${req.nasabah?.accountNo || 'N/A'}`}
+                    icon={<Landmark className="w-6 h-6 text-gray-500"/>}
+                    initialInfo={
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                             <div>
+                                <p className="font-semibold text-gray-500">Jumlah</p>
+                                <p className="font-bold text-lg text-green-600">{formatCurrency(req.amount)}</p>
+                            </div>
+                            <div>
+                                <p className="font-semibold text-gray-500">Status</p>
+                                <Badge variant={statusMapping[req.status]?.variant || 'default'}>{statusMapping[req.status]?.text || req.status}</Badge>
+                            </div>
+                        </div>
+                    }
+                    expandedInfo={
+                        <div className="text-sm space-y-2 pt-2">
+                          <div><span className="font-semibold text-gray-500 flex items-center"><Calendar className="w-3 h-3 mr-2"/>Tgl. Permintaan</span> {formatDate(req.createdAt)}</div>
+                          {req.status === 'REJECTED' && req.rejectionReason && (
+                            <div className='flex items-start'><span className="font-semibold text-gray-500 flex items-center flex-shrink-0"><Info className="w-3 h-3 mr-2"/>Alasan Ditolak</span> <span className='text-red-600'>{req.rejectionReason}</span></div>
+                          )}
+                        </div>
+                    }
+                    actionButtons={
+                        req.status === 'PENDING' ? (
+                            <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleOpenDialog(req, 'approve')} disabled={actionLoading[req.id]}>
+                                    {actionLoading[req.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 mr-2" /> Setuju</>}
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleOpenDialog(req, 'reject')} disabled={actionLoading[req.id]}>
+                                    {actionLoading[req.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <><X className="h-4 w-4 mr-2" /> Tolak</>}
+                                </Button>
+                            </div>
+                        ) : null
+                    }
+                />
+              )) : (
+                <EmptyState
+                  icon={<CircleDollarSign />}
+                  title="Tidak Ada Permintaan Penarikan"
+                  description="Saat ini tidak ada permintaan penarikan yang cocok dengan filter Anda."
+                />
+              )}
+            </div>
+        )}
+
+      <Dialog open={isApproveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Konfirmasi Tindakan</DialogTitle>
+            <DialogTitle>Setujui Permintaan Penarikan?</DialogTitle>
             <DialogDescription>
-              Anda yakin ingin <strong>{actionType === 'approve' ? 'menyetujui' : 'menolak'}</strong> permintaan penarikan sebesar <strong>{selectedRequest && formatCurrency(selectedRequest.amount)}</strong> untuk <strong>{selectedRequest && selectedRequest.nasabah.user.name}</strong>?
+              Anda akan menyetujui penarikan untuk <strong>{currentRequest?.nasabah.user.name}</strong> sebesar <strong>{formatCurrency(currentRequest?.amount ?? 0)}</strong>. Saldo nasabah akan langsung dipotong. Aksi ini tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setSelectedRequest(null)}>Batal</Button>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Batal</Button>
+            </DialogClose>
             <Button 
-              onClick={handleAction} 
-              disabled={isConfirming}
-              className={actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+              onClick={handleConfirmApprove} 
+              disabled={actionLoading[currentRequest?.id || '']}
             >
-              {isConfirming ? 'Memproses...' : (actionType === 'approve' ? 'Ya, Setujui' : 'Ya, Tolak')}
+              {actionLoading[currentRequest?.id || ''] ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Ya, Setujui'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tolak Permintaan Penarikan</DialogTitle>
+            <DialogDescription>Anda akan menolak permintaan penarikan dari <strong>{currentRequest?.nasabah.user.name}</strong>.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rejectionReason" className="pb-2 block">Alasan Penolakan</Label>
+            <Textarea 
+              id="rejectionReason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Contoh: Saldo nasabah di unit ini tidak mencukupi."
+              className="min-h-[100px]"
+            />
           </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Batal</Button>
+            </DialogClose>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmRejection} 
+              disabled={actionLoading[currentRequest?.id || ''] || rejectionReason.trim().length < 5}
+            >
+              {actionLoading[currentRequest?.id || ''] ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Konfirmasi Tolak'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

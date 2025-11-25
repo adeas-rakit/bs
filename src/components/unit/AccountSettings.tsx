@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Shield, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Shield, Lock, Eye, EyeOff, Building } from "lucide-react";
 
 export default function AccountSettings({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState("profile");
@@ -18,7 +18,7 @@ export default function AccountSettings({ user }: { user: any }) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  const [minWithdrawal, setMinWithdrawal] = useState(user.unit?.minWithdrawal || 0);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +37,27 @@ export default function AccountSettings({ user }: { user: any }) {
       toast.success("Berhasil", { id: loadingToast, description: "Profil Anda telah berhasil diperbarui." });
     } catch (error: any) {
       toast.error("Gagal", { id: loadingToast, description: error.message || "Gagal memperbarui profil. Silakan coba lagi." });
+    }
+  };
+
+  const handleUpdateUnitSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const loadingToast = toast.loading("Memperbarui pengaturan unit.");
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/unit/account`, { // Diubah ke endpoint baru
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ minWithdrawal }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        // Disesuaikan untuk menangkap pesan error dari endpoint baru
+        throw new Error(data.error || 'Gagal memperbarui pengaturan unit.');
+      }
+      toast.success("Berhasil", { id: loadingToast, description: "Pengaturan unit telah berhasil diperbarui." });
+    } catch (error: any) {
+      toast.error("Gagal", { id: loadingToast, description: error.message || "Gagal memperbarui pengaturan unit. Silakan coba lagi." });
     }
   };
 
@@ -72,7 +93,7 @@ export default function AccountSettings({ user }: { user: any }) {
       <div>
         <h1 className="text-2xl font-bold  text-foreground">Pengaturan Akun</h1>
         <p className="text-gray-500">
-          Kelola profil dan keamanan akun Anda.
+          Kelola profil, unit, dan keamanan akun Anda.
         </p>
       </div>
 
@@ -88,6 +109,19 @@ export default function AccountSettings({ user }: { user: any }) {
           <User className="inline-block w-4 h-4 mr-2" />
           Profil
         </button>
+        {user.role === 'UNIT' && (
+          <button
+            onClick={() => setActiveTab("unit")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "unit"
+                ? "border-b-2 border-green-600 text-green-600"
+                : "text-gray-500"
+            }`}
+          >
+            <Building className="inline-block w-4 h-4 mr-2" />
+            Unit
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("security")}
           className={`px-4 py-2 text-sm font-medium ${
@@ -119,6 +153,28 @@ export default function AccountSettings({ user }: { user: any }) {
               <div className="space-y-2">
                 <label htmlFor="email">Email</label>
                 <Input id="email" type="email" value={email} disabled />
+              </div>
+              <Button type="submit">Simpan Perubahan</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "unit" && user.role === 'UNIT' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pengaturan Unit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdateUnitSettings} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="minWithdrawal">Minimal Penarikan</label>
+                <Input
+                  id="minWithdrawal"
+                  type="number"
+                  value={minWithdrawal}
+                  onChange={(e) => setMinWithdrawal(Number(e.target.value))}
+                />
               </div>
               <Button type="submit">Simpan Perubahan</Button>
             </form>

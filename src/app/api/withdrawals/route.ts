@@ -3,6 +3,7 @@
 import { db } from '@/lib/db'
 import { getUserFromToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { formatCurrency } from '@/lib/utils'
 
 // This GET handler is now specifically for Nasabah to get their own withdrawal history.
 export async function GET(request: NextRequest) {
@@ -17,17 +18,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akun nasabah tidak ditemukan' }, { status: 403 })
     }
 
-    // Handle pagination
+    // Handle pagination and filters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
+    const status = searchParams.get('status');
+    const searchTerm = searchParams.get('search');
 
-    const whereClause = {
+    const whereClause: any = { // Use 'any' for dynamic conditions
       nasabahId: user.nasabah.id, 
     };
 
-    // Fetch total count for pagination
+    // Apply status filter if provided
+    if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+      whereClause.status = status;
+    }
+
+    // Apply search filter for amount if provided and is a valid number
+    if (searchTerm) {
+        try {
+            const searchAmount = parseFloat(searchTerm);
+            if (!isNaN(searchAmount)) {
+                whereClause.amount = searchAmount;
+            }
+        } catch (e) {
+            // Ignore if search term is not a valid number
+        }
+    }
+
+    // Fetch total count for pagination based on the applied filters
     const totalWithdrawals = await db.withdrawalRequest.count({ where: whereClause });
     const totalPages = Math.ceil(totalWithdrawals / limit);
 
@@ -92,6 +112,22 @@ export async function POST(request: NextRequest) {
     if (existingPendingWithdrawal) {
         return NextResponse.json({ error: 'Anda sudah memiliki 1 permintaan penarikan di unit ini. Mohon tunggu hingga permintaan sebelumnya diproses.' }, { status: 409 });
     }
+
+    // === START OF FIX ===
+    // 1. Fetch the Unit to check its rules
+    const unit = await db.unit.findUnique({
+        where: { id: unitId }
+    });
+
+    if (!unit) {
+        return NextResponse.json({ error: 'Unit tidak ditemukan' }, { status: 404 });
+    }
+    
+    // 2. Validate against the minimum withdrawal amount set by the Unit
+    if (unit.minWithdrawal && amount < unit.minWithdrawal) {
+        return NextResponse.json({ error: `Jumlah penarikan minimal adalah ${formatCurrency(unit.minWithdrawal)}.` }, { status: 400 });
+    }
+    // === END OF FIX ===
 
     const unitNasabah = await db.unitNasabah.findFirst({
       where: {

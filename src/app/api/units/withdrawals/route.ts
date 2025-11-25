@@ -3,7 +3,9 @@
 import { db } from '@/lib/db'
 import { getUserFromToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { WithdrawalRequestStatus } from '@prisma/client'
 
+// GET handler to fetch withdrawal requests for a unit
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
@@ -16,11 +18,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akun unit tidak ditemukan' }, { status: 403 })
     }
 
+    const status = request.nextUrl.searchParams.get('status') as WithdrawalRequestStatus | 'all' | null;
+
+    let whereClause: any = {
+      unitId: user.unit.id,
+    };
+
+    if (status && status !== 'all' && Object.values(WithdrawalRequestStatus).includes(status as WithdrawalRequestStatus)) {
+      whereClause.status = status as WithdrawalRequestStatus;
+    }
+
     const withdrawals = await db.withdrawalRequest.findMany({
-      where: {
-        unitId: user.unit.id,
-        status: 'PENDING',
-      },
+      where: whereClause,
       include: {
         nasabah: {
           select: { 
@@ -40,6 +49,119 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ withdrawals })
   } catch (error: any) {
     console.error('Get withdrawal requests for unit error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Terjadi kesalahan server' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT handler to approve or reject a withdrawal request
+export async function PUT(request: NextRequest) {
+  try {
+    const token = request.headers.get('Authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 })
+    }
+
+    const user = await getUserFromToken(token)
+    if (!user || user.role !== 'UNIT' || !user.unitId) {
+      return NextResponse.json(
+        { error: 'Otorisasi gagal: Hanya UNIT yang bisa melakukan tindakan ini' },
+        { status: 403 }
+      )
+    }
+
+    const { id: withdrawalId, action, rejectionReason } = await request.json();
+
+    if (!withdrawalId || !action || (action === 'reject' && !rejectionReason)) {
+        return NextResponse.json({ error: 'Payload tidak lengkap: id, action, dan rejectionReason (jika reject) diperlukan' }, { status: 400 });
+    }
+
+    const withdrawalRequest = await db.withdrawalRequest.findUnique({
+      where: { id: withdrawalId },
+      include: { nasabah: true },
+    })
+
+    if (!withdrawalRequest) {
+      return NextResponse.json({ error: 'Permintaan penarikan tidak ditemukan' }, { status: 404 })
+    }
+
+    if (withdrawalRequest.unitId !== user.unitId) {
+      return NextResponse.json(
+        { error: 'Otorisasi gagal: Anda tidak memiliki akses ke permintaan ini' },
+        { status: 403 }
+      )
+    }
+
+    if (withdrawalRequest.status !== 'PENDING') {
+      return NextResponse.json(
+        { error: `Permintaan sudah dalam status ${withdrawalRequest.status}` },
+        { status: 400 }
+      )
+    }
+
+    if (action === 'approve') {
+      if (!withdrawalRequest.nasabah) {
+          return NextResponse.json({ error: 'Data nasabah tidak ditemukan' }, { status: 404 });
+      }
+      if (withdrawalRequest.nasabah.balance < withdrawalRequest.amount) {
+        return NextResponse.json({ error: 'Saldo nasabah tidak mencukupi' }, { status: 400 })
+      }
+
+      const updatedWithdrawal = await db.$transaction(async (prisma) => {
+        const transaction = await prisma.transaction.create({
+          data: {
+            transactionNo: `WD-${Date.now()}`,
+            nasabahId: withdrawalRequest.nasabahId,
+            unitId: user.unitId as string,
+            type: 'WITHDRAWAL',
+            totalAmount: withdrawalRequest.amount,
+            totalWeight: 0,
+            status: 'SUCCESS',
+            createdById: user.id,
+            userId: user.id,
+          },
+        })
+
+        await prisma.nasabah.update({
+          where: { id: withdrawalRequest.nasabahId },
+          data: { balance: { decrement: withdrawalRequest.amount } },
+        })
+
+        return prisma.withdrawalRequest.update({
+          where: { id: withdrawalId },
+          data: {
+            status: 'APPROVED',
+            processedById: user.id,
+            transactionId: transaction.id,
+          },
+        })
+      })
+
+      return NextResponse.json({
+        message: 'Permintaan penarikan telah disetujui',
+        withdrawal: updatedWithdrawal,
+      })
+    } else if (action === 'reject') {
+      const updatedWithdrawal = await db.withdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          status: 'REJECTED',
+          rejectionReason,
+          processedById: user.id,
+        },
+      })
+
+      return NextResponse.json({
+        message: 'Permintaan penarikan telah ditolak',
+        withdrawal: updatedWithdrawal,
+      })
+    } else {
+      return NextResponse.json({ error: 'Tindakan tidak valid' }, { status: 400 })
+    }
+  } catch (error: any) {
+    console.error('Update withdrawal request error:', error)
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: 500 }

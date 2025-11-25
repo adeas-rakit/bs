@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+// Function to get token from request headers or cookies
 function getTokenFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -12,6 +13,7 @@ function getTokenFromRequest(request: NextRequest) {
   return request.cookies.get('token')?.value;
 }
 
+// Function to authenticate user from token
 async function authenticateUser(request: NextRequest) {
   const token = getTokenFromRequest(request);
   if (!token) throw new Error('Token tidak ditemukan');
@@ -26,6 +28,26 @@ async function authenticateUser(request: NextRequest) {
   return user;
 }
 
+// Function to calculate nasabah balance in real-time
+async function getNasabahBalance(nasabahId: string, unitId?: string) {
+  const whereClause: any = { nasabahId };
+  if (unitId) {
+    whereClause.unitId = unitId;
+  }
+
+  const deposits = await db.transaction.aggregate({
+    where: { ...whereClause, type: 'DEPOSIT' },
+    _sum: { totalAmount: true },
+  });
+
+  const withdrawals = await db.transaction.aggregate({
+    where: { ...whereClause, type: 'WITHDRAWAL', status: 'SUCCESS' },
+    _sum: { totalAmount: true },
+  });
+
+  return (deposits._sum.totalAmount || 0) - (withdrawals._sum.totalAmount || 0);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await authenticateUser(request);
@@ -36,17 +58,21 @@ export async function GET(request: NextRequest) {
       const totalUnits = await db.unit.count();
       const totalNasabah = await db.nasabah.count();
       const totalTransactions = await db.transaction.count();
+
       const totalDepositAmount = await db.transaction.aggregate({
         where: { type: 'DEPOSIT' },
         _sum: { totalAmount: true },
       });
+
       const totalWithdrawalAmount = await db.transaction.aggregate({
         where: { type: 'WITHDRAWAL', status: 'SUCCESS' },
         _sum: { totalAmount: true },
       });
+
       const totalActiveBalance = await db.nasabah.aggregate({
         _sum: { balance: true },
       });
+
       const totalWasteCollected = await db.nasabah.aggregate({
         _sum: { totalWeight: true },
       });
@@ -90,8 +116,7 @@ export async function GET(request: NextRequest) {
         totalNasabah,
         totalTransactions,
         totalDepositAmount: totalDepositAmount._sum.totalAmount || 0,
-        totalWithdrawalAmount:
-          totalWithdrawalAmount._sum.totalAmount || 0,
+        totalWithdrawalAmount: totalWithdrawalAmount._sum.totalAmount || 0,
         totalActiveBalance: totalActiveBalance._sum.balance || 0,
         totalWasteCollected: totalWasteCollected._sum.totalWeight || 0,
         topNasabah,
@@ -101,7 +126,6 @@ export async function GET(request: NextRequest) {
       const unitId = user.unit!.id;
 
       const totalNasabah = await db.unitNasabah.count({ where: { unitId: unitId } });
-
       const totalTransactions = await db.transaction.count({
         where: { unitId },
       });
@@ -127,25 +151,21 @@ export async function GET(request: NextRequest) {
       });
 
       const topNasabahInUnit = await db.unitNasabah.findMany({
-        where: {
-          unitId: unitId,
-        },
-        orderBy: {
-          totalWeight: 'desc',
-        },
+        where: { unitId: unitId },
+        orderBy: { totalWeight: 'desc' },
         take: 10,
         include: {
-            nasabah: {
-                include: {
-                    user: {
-                        select: {
-                            name: true,
-                            phone: true,
-                        }
-                    }
-                }
-            }
-        }
+          nasabah: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       const recentTransactions = await db.transaction.findMany({
@@ -169,8 +189,7 @@ export async function GET(request: NextRequest) {
         totalNasabah,
         totalTransactions,
         totalDepositAmount: totalDepositAmount._sum.totalAmount || 0,
-        totalWithdrawalAmount:
-          totalWithdrawalAmount._sum.totalAmount || 0,
+        totalWithdrawalAmount: totalWithdrawalAmount._sum.totalAmount || 0,
         totalActiveBalance: totalActiveBalance._sum.balance || 0,
         totalWasteCollected: totalWasteCollected._sum.totalWeight || 0,
         topNasabah: { byUnit: topNasabahInUnit.map(un => un.nasabah) },
@@ -183,11 +202,11 @@ export async function GET(request: NextRequest) {
           unitNasabah: {
             include: {
               unit: {
-                select: { id: true, name: true }
-              }
-            }
-          }
-        }
+                select: { id: true, name: true },
+              },
+            },
+          },
+        },
       });
 
       if (!nasabah) {
@@ -197,48 +216,46 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const overallBalance = await getNasabahBalance(nasabah.id);
+
       const overallStats = {
-        balance: nasabah.balance,
+        balance: overallBalance,
         totalWeight: nasabah.totalWeight,
-        totalWithdrawals: (await db.transaction.aggregate({
-          where: { nasabahId: nasabah.id, type: 'WITHDRAWAL', status: 'SUCCESS' },
-          _sum: { totalAmount: true },
-        }))._sum.totalAmount || 0,
+        totalWithdrawals: (
+          await db.transaction.aggregate({
+            where: { nasabahId: nasabah.id, type: 'WITHDRAWAL', status: 'SUCCESS' },
+            _sum: { totalAmount: true },
+          })
+        )._sum.totalAmount || 0,
       };
-
-      const withdrawalPerUnit = await db.transaction.groupBy({
-        by: ['unitId'],
-        where: {
-          nasabahId: nasabah.id,
-          type: 'WITHDRAWAL',
-          status: 'SUCCESS',
-        },
-        _sum: {
-          totalAmount: true,
-        },
-      });
-
-      const withdrawalMap = withdrawalPerUnit.reduce((acc: any, curr: any) => {
-        acc[curr.unitId] = curr._sum.totalAmount || 0;
-        return acc;
-      }, {});
 
       const byUnitStats: any = {};
       const nasabahUnitBalances: { unitId: string; unitName: string; balance: number; }[] = [];
 
       for (const nu of nasabah.unitNasabah) {
+        const unitBalance = await getNasabahBalance(nasabah.id, nu.unit.id);
         const unitStats = {
           unitId: nu.unit.id,
           unitName: nu.unit.name,
-          balance: nu.balance,
+          balance: unitBalance,
           totalWeight: nu.totalWeight,
-          totalWithdrawals: withdrawalMap[nu.unit.id] || 0,
+          totalWithdrawals: (
+            await db.transaction.aggregate({
+              where: {
+                nasabahId: nasabah.id,
+                unitId: nu.unit.id,
+                type: 'WITHDRAWAL',
+                status: 'SUCCESS',
+              },
+              _sum: { totalAmount: true },
+            })
+          )._sum.totalAmount || 0,
         };
         byUnitStats[nu.unit.id] = unitStats;
         nasabahUnitBalances.push({
           unitId: nu.unit.id,
           unitName: nu.unit.name,
-          balance: nu.balance,
+          balance: unitBalance,
         });
       }
 
@@ -248,7 +265,7 @@ export async function GET(request: NextRequest) {
         take: 10,
         include: { unit: { select: { name: true } }, items: { include: { wasteType: true } } },
       });
-      
+
       const depositCount = await db.transaction.count({
         where: { nasabahId: nasabah.id, type: 'DEPOSIT' },
       });
@@ -268,7 +285,7 @@ export async function GET(request: NextRequest) {
     console.error('Get dashboard error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
-      { status: error.message.includes('Token') ? 401 : 500 },
+      { status: error.message.includes('Token') ? 401 : 500 }
     );
   }
 }

@@ -15,31 +15,31 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String
-  phone         String?
-  role          UserRole  @default(NASABAH)
-  status        UserStatus @default(AKTIF)
-  qrCode        String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  password                String
+  name                    String
+  phone                   String?
+  role                    UserRole  @default(NASABAH)
+  status                  UserStatus @default(AKTIF)
+  qrCode                  String?   @unique
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
   notificationsLastReadAt DateTime?
   
   // Relations
-  unit          Unit?     @relation(fields: [unitId], references: [id])
-  unitId        String?
-  nasabah       Nasabah?
-  transactions  Transaction[]
-  approvedWithdrawals WithdrawalRequest[] @relation("ApprovedWithdrawals")
-  createdUnits  Unit[]    @relation("CreatedUnits")
-  createdNasabahs Nasabah[] @relation("CreatedNasabahs")
-  createdWasteTypes WasteType[] @relation("CreatedWasteTypes")
-  createdTransactions Transaction[] @relation("CreatedTransactions")
-  createdTransactionItems TransactionItem[] @relation("CreatedTransactionItems")
+  unit                      Unit?     @relation(fields: [unitId], references: [id])
+  unitId                    String?
+  nasabah                   Nasabah?
+  transactions              Transaction[]
+  processedWithdrawals      WithdrawalRequest[] @relation("ProcessedWithdrawals") // Renamed from approvedWithdrawals
+  createdUnits              Unit[]    @relation("CreatedUnits")
+  createdNasabahs           Nasabah[] @relation("CreatedNasabahs")
+  createdWasteTypes         WasteType[] @relation("CreatedWasteTypes")
+  createdTransactions       Transaction[] @relation("CreatedTransactions")
+  createdTransactionItems   TransactionItem[] @relation("CreatedTransactionItems")
   createdWithdrawalRequests WithdrawalRequest[] @relation("CreatedWithdrawalRequests")
-  createdUnitNasabahs UnitNasabah[] @relation("CreatedUnitNasabahs")
+  createdUnitNasabahs       UnitNasabah[] @relation("CreatedUnitNasabahs")
 
   @@map("users")
 }
@@ -51,6 +51,7 @@ model Unit {
   contactPerson String?
   phone         String
   status        UnitStatus @default(AKTIF)
+  minWithdrawal Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   createdById   String
@@ -153,22 +154,23 @@ model TransactionItem {
 }
 
 model WithdrawalRequest {
-  id            String                  @id @default(cuid())
-  amount        Int
-  status        WithdrawalRequestStatus @default(PENDING)
-  nasabahId     String
-  unitId        String?
-  transactionId String?                 @unique
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
-  adminId       String?
-  createdById   String
+  id              String                  @id @default(cuid())
+  amount          Int
+  status          WithdrawalRequestStatus @default(PENDING)
+  nasabahId       String
+  unitId          String?
+  transactionId   String?                 @unique
+  rejectionReason String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  processedById   String?
+  createdById     String
 
   // Relations
   nasabah       Nasabah     @relation(fields: [nasabahId], references: [id])
   unit          Unit?       @relation(fields: [unitId], references: [id])
   transaction   Transaction?  @relation(fields: [transactionId], references: [id])
-  approvedBy    User?       @relation("ApprovedWithdrawals", fields: [adminId], references: [id])
+  processedBy   User?       @relation("ProcessedWithdrawals", fields: [processedById], references: [id])
   createdBy     User        @relation("CreatedWithdrawalRequests", fields: [createdById], references: [id])
 
   @@map("withdrawal_requests")

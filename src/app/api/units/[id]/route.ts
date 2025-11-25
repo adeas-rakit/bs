@@ -18,7 +18,8 @@ async function authenticateUser(request: NextRequest) {
   
   const decoded = jwt.verify(token, JWT_SECRET) as any
   const user = await db.user.findUnique({
-    where: { id: decoded.userId }
+    where: { id: decoded.userId },
+    include: { unit: true }
   })
   
   if (!user) throw new Error('User tidak ditemukan')
@@ -30,38 +31,72 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await authenticateUser(request)
-    
-    if (user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Akses ditolak' },
-        { status: 403 }
-      )
-    }
+    const user = await authenticateUser(request);
+    const { name, address, phone, status, minWithdrawal } = await request.json();
 
-    const { name, address, phone, status } = await request.json()
+    let unitIdToUpdate = params.id;
+    let dataToUpdate: any = {};
 
-    const unit = await db.unit.update({
-      where: { id: params.id },
-      data: {
+    if (user.role === 'UNIT') {
+      // Jika pengguna adalah UNIT, paksa update ke unit mereka sendiri dan abaikan params.id
+      if (!user.unitId) {
+        return NextResponse.json(
+          { error: 'Pengguna unit tidak memiliki unit terkait.' },
+          { status: 400 }
+        );
+      }
+      unitIdToUpdate = user.unitId;
+      // Pengguna UNIT hanya boleh mengubah minWithdrawal
+      if (minWithdrawal !== undefined) {
+        dataToUpdate.minWithdrawal = Number(minWithdrawal);
+      } else {
+        // Jika tidak ada data yang relevan untuk diupdate oleh UNIT, kembalikan error
+        return NextResponse.json(
+          { error: 'Tidak ada data yang valid untuk diperbarui.' },
+          { status: 400 }
+        );
+      }
+    } else if (user.role === 'ADMIN') {
+      // Admin dapat mengupdate semua field yang diizinkan
+      dataToUpdate = {
         ...(name && { name }),
         ...(address && { address }),
         ...(phone && { phone }),
-        ...(status && { status })
-      }
-    })
+        ...(status && { status }),
+        ...(minWithdrawal !== undefined && { minWithdrawal: Number(minWithdrawal) }),
+      };
+    } else {
+      // Jika bukan ADMIN atau UNIT, tolak akses
+      return NextResponse.json(
+        { error: 'Akses ditolak' },
+        { status: 403 }
+      );
+    }
+
+    // Pastikan ada sesuatu untuk diupdate
+    if (Object.keys(dataToUpdate).length === 0) {
+        return NextResponse.json(
+            { error: 'Tidak ada data yang valid untuk diperbarui.' },
+            { status: 400 }
+        );
+    }
+
+    const unit = await db.unit.update({
+      where: { id: unitIdToUpdate },
+      data: dataToUpdate
+    });
 
     return NextResponse.json({
       message: 'Unit berhasil diperbarui',
       unit
-    })
+    });
 
   } catch (error: any) {
-    console.error('Update unit error:', error)
+    console.error('Update unit error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: error.message.includes('Token') ? 401 : 500 }
-    )
+    );
   }
 }
 

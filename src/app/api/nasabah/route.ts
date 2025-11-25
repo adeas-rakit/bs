@@ -94,13 +94,13 @@ export async function GET(request: NextRequest) {
           where: { nasabahId: { in: nasabahIds }, type: 'DEPOSIT' },
           _count: { id: true },
       }),
-      db.unit.findMany({ select: { id: true, name: true } })
+      db.unit.findMany({ select: { id: true, name: true, minWithdrawal: true } })
     ]);
 
     const unitMap = allUnits.reduce((acc, unit) => {
-      acc[unit.id] = unit.name;
+      acc[unit.id] = { name: unit.name, minWithdrawal: unit.minWithdrawal };
       return acc;
-    }, {} as Record<string, string>);
+    }, {} as Record<string, { name: string, minWithdrawal: number }>);
 
     const depositStatsMap = nasabahIds.reduce((acc, id) => {
       acc[id] = { totalDepositCount: 0, depositsByUnit: [] };
@@ -111,10 +111,12 @@ export async function GET(request: NextRequest) {
       if (group.nasabahId && group.unitId) {
         const nasabahStat = depositStatsMap[group.nasabahId];
         const count = group._count.id;
+        const unitInfo = unitMap[group.unitId] || { name: 'Unknown Unit', minWithdrawal: 0 };
         nasabahStat.totalDepositCount += count;
         nasabahStat.depositsByUnit.push({
           unitId: group.unitId,
-          unitName: unitMap[group.unitId] || 'Unknown Unit',
+          unitName: unitInfo.name,
+          minWithdrawal: unitInfo.minWithdrawal,
           count: count,
         });
       }
