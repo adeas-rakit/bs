@@ -29,6 +29,10 @@ interface WithdrawalRequest {
   }
 }
 
+interface WithdrawalRequestsManagementProps {
+  onUpdate: () => void;
+}
+
 const statusMapping = {
     PENDING: { text: 'Tertunda', variant: 'secondary' as const },
     APPROVED: { text: 'Disetujui', variant: 'default' as const },
@@ -60,7 +64,7 @@ const WithdrawalRequestsManagementSkeleton = () => (
     </div>
 );
 
-export default function WithdrawalRequestsManagement() {
+export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalRequestsManagementProps) {
   const [requests, setRequests] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
@@ -128,7 +132,8 @@ export default function WithdrawalRequestsManagement() {
       if (action === 'approve') setApproveDialogOpen(false);
       if (action === 'reject') setRejectDialogOpen(false);
 
-      fetchRequests();
+      await fetchRequests();
+      onUpdate();
 
     } catch (error: any) {
       toast.error("Gagal", { id: loadingToast, description: error.message })

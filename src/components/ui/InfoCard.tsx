@@ -12,7 +12,7 @@ interface InfoCardProps {
   subtitle: string;
   icon: React.ReactNode;
   initialInfo: React.ReactNode;
-  expandedInfo: React.ReactNode;
+  expandedInfo?: React.ReactNode;
   actionButtons?: React.ReactNode;
   isCollapsible?: boolean;
 }

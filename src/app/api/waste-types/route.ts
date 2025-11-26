@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/db'
 import { getUserFromToken } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server'
@@ -64,22 +65,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await authenticateUser(request)
-    
-    if (user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Akses ditolak' },
-        { status: 403 }
-      )
+    const user = await authenticateUser(request);
+
+    if (!['ADMIN', 'UNIT'].includes(user.role)) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const { name, pricePerKg, unitId } = await request.json()
+    const { name, pricePerKg, unitId: reqUnitId } = await request.json();
+    let unitId: string;
 
-    if (!name || !pricePerKg || !unitId) {
-      return NextResponse.json(
-        { error: 'Nama, harga per kg dan ID unit diperlukan' },
-        { status: 400 }
-      )
+    if (user.role === 'UNIT') {
+      if (!user.unitId) {
+        return NextResponse.json({ error: 'Unit untuk pengguna ini tidak ditemukan' }, { status: 400 });
+      }
+      unitId = user.unitId;
+    } else { // ADMIN
+      if (!reqUnitId) {
+        return NextResponse.json({ error: 'ID unit diperlukan untuk admin' }, { status: 400 });
+      }
+      unitId = reqUnitId;
+    }
+
+    if (!name || !pricePerKg) {
+      return NextResponse.json({ error: 'Nama dan harga per kg diperlukan' }, { status: 400 });
     }
 
     const wasteType = await db.wasteType.create({
@@ -88,23 +96,21 @@ export async function POST(request: NextRequest) {
         pricePerKg,
         unitId,
         createdById: user.id,
-      }
-    })
+      },
+    });
 
     return NextResponse.json({
       message: 'Jenis sampah berhasil dibuat',
-      wasteType
-    })
-
+      wasteType,
+    });
   } catch (error: any) {
-    console.error('Create waste type error:', error)
+    console.error('Create waste type error:', error);
     return NextResponse.json(
       { error: error.message || 'Terjadi kesalahan server' },
       { status: error.message.includes('Token') ? 401 : 500 }
-    )
+    );
   }
 }
-
 export async function PUT(request: NextRequest) {
   try {
     const user = await authenticateUser(request)

@@ -8,7 +8,8 @@ import {
   Settings,
   DollarSign,
   BookText,
-  Bell
+  Bell,
+  Trash2
 } from 'lucide-react'
 import NasabahManagement from '@/components/unit/NasabahManagement'
 import DepositForm from '@/components/unit/DepositForm'
@@ -19,16 +20,18 @@ import DepositHistory from '@/components/unit/DepositHistory'
 import Statement from '@/components/unit/Statement'
 import NotificationHistory from '@/components/common/NotificationHistory'
 import QRScannerComponent from '@/components/common/QRScanner'
+import WasteTypesManagement from '@/components/unit/WasteTypesManagement'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Sidebar from '@/components/ui/sidebar'
 import BottomBar from '@/components/ui/bottom-bar'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DashboardData, Nasabah } from '@/types'
+import { DashboardData, Nasabah, WasteType } from '@/types'
 import { UnitDashboardProvider } from '@/context/UnitDashboardContext'
 import { useTabContext } from '@/context/TabContext';
 import { UserHeader } from '@/components/ui/user-header'
+import FloatingAddButton from '@/components/ui/FloatingAddButton'
 
 interface User {
   id: string;
@@ -66,6 +69,8 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
 
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scannedNasabah, setScannedNasabah] = useState<Nasabah | null>(null);
+  const [isWasteTypeFormOpen, setIsWasteTypeFormOpen] = useState(false);
+  const [editingWasteType, setEditingWasteType] = useState<Partial<WasteType> | null>(null)
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -78,6 +83,7 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
     { name: 'Nasabah', value: 'nasabah', icon: Users, bgColor: 'bg-blue-50', hoverBgColor: 'bg-blue-600', borderColor: 'border-blue-200', hoverBorderColor: 'border-blue-600' },
     { name: 'Menabung', value: 'deposit', icon: UserPlus, bgColor: 'bg-green-50', hoverBgColor: 'bg-green-600', borderColor: 'border-green-200', hoverBorderColor: 'border-green-600' },
     { name: 'Penarikan', value: 'withdrawals', icon: DollarSign, bgColor: 'bg-purple-50', hoverBgColor: 'bg-purple-600', borderColor: 'border-purple-200', hoverBorderColor: 'border-purple-600' },
+    { name: 'Jenis Sampah', value: 'waste-types', icon: Trash2, bgColor: 'bg-teal-50', hoverBgColor: 'bg-teal-600', borderColor: 'border-teal-200', hoverBorderColor: 'border-teal-600' },
     { name: 'Statement', value: 'statement', icon: BookText, bgColor: 'bg-orange-50', hoverBgColor: 'bg-orange-600', borderColor: 'border-orange-200', hoverBorderColor: 'border-orange-600' },
     { name: 'Notifikasi', value: 'notifications', icon: Bell, bgColor: 'bg-yellow-50', hoverBgColor: 'bg-yellow-600', borderColor: 'border-yellow-200', hoverBorderColor: 'border-yellow-600' },
     { name: 'Pengaturan', value: 'settings', icon: Settings, bgColor: 'bg-gray-50', hoverBgColor: 'bg-gray-600', borderColor: 'border-gray-200', hoverBorderColor: 'border-gray-600' },
@@ -153,7 +159,15 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
                     {depositTab === 'history' && <DepositHistory key={Date.now()} newlyAddedTransactionId={newlyAddedTransactionId} />}
                 </div>
             )}
-            {activeTab === 'withdrawals' && <WithdrawalManagement onUpdate={refetch} />} 
+            {activeTab === 'withdrawals' && <WithdrawalManagement onUpdate={refetch} />}
+            {activeTab === 'waste-types' && (
+              <WasteTypesManagement 
+                  isFormOpen={isWasteTypeFormOpen} 
+                  setIsFormOpen={setIsWasteTypeFormOpen} 
+                  editingWasteType={editingWasteType} 
+                  setEditingWasteType={setEditingWasteType} 
+              />
+            )}
             {activeTab === 'statement' && <Statement />}
             {activeTab === 'notifications' && <NotificationHistory userRole={user.role} />}
             {activeTab === 'settings' && <AccountSettings user={user} />}
@@ -179,6 +193,15 @@ const UnitDashboardContent = ({ user }: { user: User }) => {
             <div className="p-4 sm:p-6 lg:p-8 pb-40 lg:pb-8">
               <UserHeader user={user} />
                 {renderContent()}
+                {activeTab === 'waste-types' && (
+                    <FloatingAddButton 
+                        className='bottom-32 h-10 w-10' 
+                        onClick={() => {
+                            setEditingWasteType(null); // Clear editing state
+                            setIsWasteTypeFormOpen(true);
+                        }} 
+                    />
+                )}
             </div>
         </PullToRefresh>
       </main>
