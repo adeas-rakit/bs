@@ -1,4 +1,3 @@
-
 import { db } from "./db";
 import jwt from 'jsonwebtoken';
 
@@ -8,9 +7,13 @@ interface TokenPayload {
   exp: number;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function getUserFromToken(token: string) {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not defined in the environment variables');
+    return null;
+  }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
 
@@ -28,11 +31,14 @@ export async function getUserFromToken(token: string) {
         name: true,
         email: true,
         role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        notificationsLastReadAt: true,
         unitId: true,
-        notificationsLastReadAt: true, // <-- FIX: Explicitly select the field
-        nasabah: true,
         unit: true,
-      },
+        nasabah: true,
+      }
     });
 
     return user;

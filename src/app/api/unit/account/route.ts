@@ -3,10 +3,17 @@ import { db } from '@/lib/db'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET
 
 // Fungsi otentikasi yang sama persis seperti di endpoint lain
 async function authenticateUser(request: NextRequest) {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not defined in the environment variables');
+    return NextResponse.json(
+      { error: 'Konfigurasi server tidak lengkap' },
+      { status: 500 }
+    );
+  }
   const authHeader = request.headers.get('authorization')
   const token = authHeader && authHeader.startsWith('Bearer ') 
     ? authHeader.substring(7) 

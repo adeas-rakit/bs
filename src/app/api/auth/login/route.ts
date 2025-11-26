@@ -3,9 +3,16 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET
 
 export async function POST(request: NextRequest) {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not defined in the environment variables');
+    return NextResponse.json(
+      { error: 'Konfigurasi server tidak lengkap' },
+      { status: 500 }
+    );
+  }
   try {
     const { email, password } = await request.json()
 

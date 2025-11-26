@@ -4,9 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not defined in the environment variables');
+    return null;
+  }
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromToken } from '@/lib/auth';
 
 async function authenticateUser(request: NextRequest) {
+  
   const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
   if (!token) {
     throw new Error('Token tidak ditemukan');
