@@ -1,5 +1,5 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getUserFromToken } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { formatCurrency } from '@/lib/utils';
@@ -15,21 +15,21 @@ interface Notification {
 
 const createNotificationId = (type: string, id: string, timestamp?: string, status?: string) => `${type}-${id}-${timestamp || ''}-${status || ''}`;
 
-async function getToken(request: Request): Promise<string | null> {
-    return request.headers.get('Authorization')?.split(' ')?.[1] || null;
+async function authenticateUser(request: NextRequest) {
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
-        const token = await getToken(request);
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const user = await getUserFromToken(token);
-        if (!user) {
-            return NextResponse.json({ error: 'User not found or token invalid' }, { status: 404 });
-        }
+        const user = await authenticateUser(request);
 
         const { searchParams } = new URL(request.url);
         const typeFilter = searchParams.get('type');
@@ -129,17 +129,9 @@ export async function GET(request: Request) {
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
-        const token = await getToken(request);
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        
-        const user = await getUserFromToken(token);
-        if (!user) {
-            return NextResponse.json({ error: 'User not found or token invalid' }, { status: 404 });
-        }
+        const user = await authenticateUser(request);
 
         await db.user.update({
             where: { id: user.id },

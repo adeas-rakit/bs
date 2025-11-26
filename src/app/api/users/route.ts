@@ -1,29 +1,18 @@
 import { db } from '@/lib/db'
-import jwt from 'jsonwebtoken'
+import { getUserFromToken } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
-
-function getTokenFromRequest(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7)
-  }
-  return request.cookies.get('token')?.value
-}
-
 async function authenticateUser(request: NextRequest) {
-  const token = getTokenFromRequest(request)
-  if (!token) throw new Error('Token tidak ditemukan')
-  
-  const decoded = jwt.verify(token, JWT_SECRET) as any
-  const user = await db.user.findUnique({
-    where: { id: decoded.userId }
-  })
-  
-  if (!user) throw new Error('User tidak ditemukan')
-  return user
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
 }
 
 export async function GET(request: NextRequest) {

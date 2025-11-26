@@ -4,16 +4,24 @@ import { db } from '@/lib/db'
 import { getUserFromToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { WithdrawalRequestStatus } from '@prisma/client'
+import { generateTransactionNo } from '@/lib/utils'
+
+async function authenticateUser(request: NextRequest) {
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
+}
 
 // GET handler to fetch withdrawal requests for a unit
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 })
-    }
-    
-    const user = await getUserFromToken(token)
+    const user = await authenticateUser(request)
     if (!user || !user.unit) {
       return NextResponse.json({ error: 'Akun unit tidak ditemukan' }, { status: 403 })
     }
@@ -59,12 +67,7 @@ export async function GET(request: NextRequest) {
 // PUT handler to approve or reject a withdrawal request
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 })
-    }
-
-    const user = await getUserFromToken(token)
+    const user = await authenticateUser(request)
     if (!user || user.role !== 'UNIT' || !user.unitId) {
       return NextResponse.json(
         { error: 'Otorisasi gagal: Hanya UNIT yang bisa melakukan tindakan ini' },
@@ -112,7 +115,7 @@ export async function PUT(request: NextRequest) {
       const updatedWithdrawal = await db.$transaction(async (prisma) => {
         const transaction = await prisma.transaction.create({
           data: {
-            transactionNo: `WD-${Date.now()}`,
+            transactionNo: generateTransactionNo('WDR'),
             nasabahId: withdrawalRequest.nasabahId,
             unitId: user.unitId as string,
             type: 'WITHDRAWAL',

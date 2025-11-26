@@ -1,5 +1,5 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { getUserFromToken } from '@/lib/auth';
 
@@ -66,21 +66,22 @@ function calculateRank(value: number, ranks: Rank[]) {
     };
 }
 
+async function authenticateUser(request: NextRequest) {
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
+}
+
 // --- API HANDLER ---
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('authorization');
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan: Token tidak ditemukan.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-        }
-
-        const token = authHeader.split(' ')[1];
-        const user = await getUserFromToken(token);
-
-        if (!user?.id) {
-            return new NextResponse(JSON.stringify({ error: 'Otentikasi diperlukan: Token tidak valid.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-        }
+        const user = await authenticateUser(request);
 
         const userId = user.id;
 

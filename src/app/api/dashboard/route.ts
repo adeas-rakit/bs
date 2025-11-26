@@ -1,30 +1,17 @@
 import { db } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import { getUserFromToken } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Function to get token from request headers or cookies
-function getTokenFromRequest(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  return request.cookies.get('token')?.value;
-}
 
 // Function to authenticate user from token
 async function authenticateUser(request: NextRequest) {
-  const token = getTokenFromRequest(request);
-  if (!token) throw new Error('Token tidak ditemukan');
-
-  const decoded = jwt.verify(token, JWT_SECRET) as any;
-  const user = await db.user.findUnique({
-    where: { id: decoded.userId },
-    include: { unit: true },
-  });
-
-  if (!user) throw new Error('User tidak ditemukan');
+  const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+  if (!token) {
+    throw new Error('Token tidak ditemukan');
+  }
+  const user = await getUserFromToken(token);
+  if (!user) {
+    throw new Error('User tidak ditemukan');
+  }
   return user;
 }
 
@@ -59,19 +46,20 @@ export async function GET(request: NextRequest) {
       const totalNasabah = await db.nasabah.count();
       const totalTransactions = await db.transaction.count();
 
-      const totalDepositAmount = await db.transaction.aggregate({
+      const totalDepositAmountAgg = await db.transaction.aggregate({
         where: { type: 'DEPOSIT' },
         _sum: { totalAmount: true },
       });
 
-      const totalWithdrawalAmount = await db.transaction.aggregate({
+      const totalWithdrawalAmountAgg = await db.transaction.aggregate({
         where: { type: 'WITHDRAWAL', status: 'SUCCESS' },
         _sum: { totalAmount: true },
       });
 
-      const totalActiveBalance = await db.nasabah.aggregate({
-        _sum: { balance: true },
-      });
+      const totalDepositAmount = totalDepositAmountAgg._sum.totalAmount || 0;
+      const totalWithdrawalAmount = totalWithdrawalAmountAgg._sum.totalAmount || 0;
+
+      const totalActiveBalance = totalDepositAmount - totalWithdrawalAmount;
 
       const totalWasteCollected = await db.nasabah.aggregate({
         _sum: { totalWeight: true },
@@ -115,9 +103,9 @@ export async function GET(request: NextRequest) {
         totalUnits,
         totalNasabah,
         totalTransactions,
-        totalDepositAmount: totalDepositAmount._sum.totalAmount || 0,
-        totalWithdrawalAmount: totalWithdrawalAmount._sum.totalAmount || 0,
-        totalActiveBalance: totalActiveBalance._sum.balance || 0,
+        totalDepositAmount,
+        totalWithdrawalAmount,
+        totalActiveBalance,
         totalWasteCollected: totalWasteCollected._sum.totalWeight || 0,
         topNasabah,
         recentTransactions,
@@ -125,48 +113,93 @@ export async function GET(request: NextRequest) {
     } else if (user.role === 'UNIT') {
       const unitId = user.unit!.id;
 
-      const totalNasabah = await db.unitNasabah.count({ where: { unitId: unitId } });
+      const totalNasabah = await db.nasabah.count({
+        where: {
+          OR: [
+            { unitId: unitId },
+            { transactions: { some: { unitId: unitId } } },
+          ],
+        },
+      });
       const totalTransactions = await db.transaction.count({
         where: { unitId },
       });
 
-      const totalDepositAmount = await db.transaction.aggregate({
+      const totalDepositAmountAgg = await db.transaction.aggregate({
         where: { unitId, type: 'DEPOSIT' },
         _sum: { totalAmount: true },
       });
 
-      const totalWithdrawalAmount = await db.transaction.aggregate({
+      const totalWithdrawalAmountAgg = await db.transaction.aggregate({
         where: { unitId, type: 'WITHDRAWAL', status: 'SUCCESS' },
         _sum: { totalAmount: true },
       });
 
-      const totalActiveBalance = await db.unitNasabah.aggregate({
-        where: { unitId: unitId },
-        _sum: { balance: true },
-      });
+      const totalDepositAmount = totalDepositAmountAgg._sum.totalAmount || 0;
+      const totalWithdrawalAmount = totalWithdrawalAmountAgg._sum.totalAmount || 0;
 
-      const totalWasteCollected = await db.unitNasabah.aggregate({
-        where: { unitId: unitId },
-        _sum: { totalWeight: true },
-      });
+      const totalActiveBalance = totalDepositAmount - totalWithdrawalAmount;
 
-      const topNasabahInUnit = await db.unitNasabah.findMany({
-        where: { unitId: unitId },
-        orderBy: { totalWeight: 'desc' },
-        take: 10,
-        include: {
-          nasabah: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  phone: true,
-                },
-              },
-            },
-          },
+      const totalWasteCollectedAgg = await db.transactionItem.aggregate({
+        _sum: { weight: true },
+        where: {
+            transaction: {
+                unitId: unitId,
+                type: 'DEPOSIT'
+            }
+        }
+      });
+      const totalWasteCollected = totalWasteCollectedAgg._sum.weight || 0;
+
+      const unitDepositTransactions = await db.transaction.findMany({
+        where: {
+            unitId: unitId,
+            type: 'DEPOSIT',
         },
+        select: {
+            nasabahId: true,
+            items: {
+                select: {
+                    weight: true
+                }
+            }
+        }
       });
+
+      const nasabahWeights = new Map<string, number>();
+      const nasabahDepositCounts = new Map<string, number>();
+      unitDepositTransactions.forEach(tx => {
+          if (tx.nasabahId) {
+              const txWeight = tx.items.reduce((sum, item) => sum + item.weight, 0);
+              const currentWeight = nasabahWeights.get(tx.nasabahId) || 0;
+              nasabahWeights.set(tx.nasabahId, currentWeight + txWeight);
+
+              const currentCount = nasabahDepositCounts.get(tx.nasabahId) || 0;
+              nasabahDepositCounts.set(tx.nasabahId, currentCount + 1);
+          }
+      });
+      
+      const sortedNasabahByWeight = Array.from(nasabahWeights.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+
+      const topNasabahIds = sortedNasabahByWeight.map(entry => entry[0]);
+
+      let topNasabahByUnit = [];
+      if (topNasabahIds.length > 0) {
+          const nasabahDetails = await db.nasabah.findMany({
+              where: { id: { in: topNasabahIds } },
+              include: {
+                  user: { select: { name: true, phone: true } },
+              }
+          });
+          
+          topNasabahByUnit = nasabahDetails.map(nasabah => ({
+              ...nasabah,
+              totalWeight: nasabahWeights.get(nasabah.id) || 0,
+              depositCount: nasabahDepositCounts.get(nasabah.id) || 0,
+          })).sort((a, b) => (nasabahWeights.get(b.id) || 0) - (nasabahWeights.get(a.id) || 0));
+      }
 
       const recentTransactions = await db.transaction.findMany({
         where: { unitId },
@@ -188,25 +221,16 @@ export async function GET(request: NextRequest) {
       data = {
         totalNasabah,
         totalTransactions,
-        totalDepositAmount: totalDepositAmount._sum.totalAmount || 0,
-        totalWithdrawalAmount: totalWithdrawalAmount._sum.totalAmount || 0,
-        totalActiveBalance: totalActiveBalance._sum.balance || 0,
-        totalWasteCollected: totalWasteCollected._sum.totalWeight || 0,
-        topNasabah: { byUnit: topNasabahInUnit.map(un => un.nasabah) },
+        totalDepositAmount,
+        totalWithdrawalAmount,
+        totalActiveBalance,
+        totalWasteCollected,
+        topNasabah: { byUnit: topNasabahByUnit },
         recentTransactions,
       };
     } else if (user.role === 'NASABAH') {
       const nasabah = await db.nasabah.findUnique({
         where: { userId: user.id },
-        include: {
-          unitNasabah: {
-            include: {
-              unit: {
-                select: { id: true, name: true },
-              },
-            },
-          },
-        },
       });
 
       if (!nasabah) {
@@ -216,11 +240,38 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const memberUnits = await db.unitNasabah.findMany({
+        where: { nasabahId: nasabah.id },
+        select: { unitId: true }
+      });
+      const memberUnitIds = memberUnits.map(mu => mu.unitId);
+  
+      const transactionUnits = await db.transaction.groupBy({
+        by: ['unitId'],
+        where: { nasabahId: nasabah.id },
+      });
+      const transactionUnitIds = transactionUnits.map(tu => tu.unitId).filter(id => id !== null) as string[];
+      
+      const allUnitIds = [...new Set([...memberUnitIds, ...transactionUnitIds])];
+  
+      const allInteractedUnits = await db.unit.findMany({
+        where: { id: { in: allUnitIds } },
+        select: { id: true, name: true }
+      });
+
       const overallBalance = await getNasabahBalance(nasabah.id);
+      const overallDepositCount = await db.transaction.count({
+        where: { nasabahId: nasabah.id, type: 'DEPOSIT' },
+      });
+      const overallTotalWeightAgg = await db.transactionItem.aggregate({
+        _sum: { weight: true },
+        where: { transaction: { nasabahId: nasabah.id, type: 'DEPOSIT' } },
+      });
 
       const overallStats = {
         balance: overallBalance,
-        totalWeight: nasabah.totalWeight,
+        totalWeight: overallTotalWeightAgg._sum.weight || 0,
+        depositCount: overallDepositCount,
         totalWithdrawals: (
           await db.transaction.aggregate({
             where: { nasabahId: nasabah.id, type: 'WITHDRAWAL', status: 'SUCCESS' },
@@ -232,30 +283,43 @@ export async function GET(request: NextRequest) {
       const byUnitStats: any = {};
       const nasabahUnitBalances: { unitId: string; unitName: string; balance: number; }[] = [];
 
-      for (const nu of nasabah.unitNasabah) {
-        const unitBalance = await getNasabahBalance(nasabah.id, nu.unit.id);
-        const unitStats = {
-          unitId: nu.unit.id,
-          unitName: nu.unit.name,
-          balance: unitBalance,
-          totalWeight: nu.totalWeight,
-          totalWithdrawals: (
-            await db.transaction.aggregate({
-              where: {
+      for (const unit of allInteractedUnits) {
+        const unitBalance = await getNasabahBalance(nasabah.id, unit.id);
+        const unitDepositCount = await db.transaction.count({
+            where: { nasabahId: nasabah.id, unitId: unit.id, type: 'DEPOSIT' },
+        });
+
+        const unitWeightAgg = await db.transactionItem.aggregate({
+            _sum: { weight: true },
+            where: {
+                transaction: { nasabahId: nasabah.id, unitId: unit.id, type: 'DEPOSIT' },
+            },
+        });
+
+        const unitTotalWithdrawalsAgg = await db.transaction.aggregate({
+            where: {
                 nasabahId: nasabah.id,
-                unitId: nu.unit.id,
+                unitId: unit.id,
                 type: 'WITHDRAWAL',
                 status: 'SUCCESS',
-              },
-              _sum: { totalAmount: true },
-            })
-          )._sum.totalAmount || 0,
+            },
+            _sum: { totalAmount: true },
+        });
+
+        const unitStats = {
+            unitId: unit.id,
+            unitName: unit.name,
+            balance: unitBalance,
+            totalWeight: unitWeightAgg._sum.weight || 0,
+            depositCount: unitDepositCount,
+            totalWithdrawals: unitTotalWithdrawalsAgg._sum.totalAmount || 0,
         };
-        byUnitStats[nu.unit.id] = unitStats;
+
+        byUnitStats[unit.id] = unitStats;
         nasabahUnitBalances.push({
-          unitId: nu.unit.id,
-          unitName: nu.unit.name,
-          balance: unitBalance,
+            unitId: unit.id,
+            unitName: unit.name,
+            balance: unitBalance,
         });
       }
 
@@ -266,16 +330,11 @@ export async function GET(request: NextRequest) {
         include: { unit: { select: { name: true } }, items: { include: { wasteType: true } } },
       });
 
-      const depositCount = await db.transaction.count({
-        where: { nasabahId: nasabah.id, type: 'DEPOSIT' },
-      });
-
       data = {
         overall: overallStats,
         byUnit: byUnitStats,
-        units: nasabah.unitNasabah.map(nu => nu.unit),
+        units: allInteractedUnits,
         recentTransactions,
-        depositCount,
         nasabahUnitBalances,
       };
     }

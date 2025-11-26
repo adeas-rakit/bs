@@ -1,16 +1,23 @@
-
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromToken } from '@/lib/auth'
 
-export async function GET(request: Request) {
-  try {
-    const token = request.headers.get('Authorization')?.split(' ')[1]
+async function authenticateUser(request: NextRequest) {
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 })
+      throw new Error('Token tidak ditemukan');
     }
-    const user = await getUserFromToken(token)
-    if (!user || user.role !== 'UNIT') {
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await authenticateUser(request)
+    if (user.role !== 'UNIT' || !user.unitId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -70,20 +77,33 @@ export async function GET(request: Request) {
 
     const nasabahInUnit = await db.unitNasabah.findMany({
         where: {
-            unitId: user.unitId
+            unitId: user.unitId,
+        },
+        select: {
+            nasabahId: true,
+        },
+    });
+
+    const nasabahIds = nasabahInUnit.map((nu) => nu.nasabahId);
+
+    const nasabahs = await db.nasabah.findMany({
+        where: {
+            id: {
+                in: nasabahIds,
+            },
         },
         include: {
-            nasabah: {
-                include: {
-                    user: true
-                }
-            }
-        }
-    })
+            user: {
+                select: {
+                    name: true,
+                },
+            },
+        },
+    });
 
-    const nasabahList = nasabahInUnit.map(nu => ({
-        id: nu.nasabahId,
-        name: nu.nasabah.user.name
+    const nasabahList = nasabahs.map(n => ({
+        id: n.id,
+        name: n.user.name,
     }));
 
     return NextResponse.json({

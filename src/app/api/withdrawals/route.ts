@@ -5,15 +5,22 @@ import { getUserFromToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { formatCurrency } from '@/lib/utils'
 
+async function authenticateUser(request: NextRequest) {
+    const token = request.headers.get('authorization')?.split(' ')[1] || request.cookies.get('token')?.value;
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    const user = await getUserFromToken(token);
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+    return user;
+}
+
 // This GET handler is now specifically for Nasabah to get their own withdrawal history.
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 })
-    }
-    
-    const user = await getUserFromToken(token)
+    const user = await authenticateUser(request)
     if (!user || !user.nasabah) {
       return NextResponse.json({ error: 'Akun nasabah tidak ditemukan' }, { status: 403 })
     }
@@ -81,12 +88,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1];
-    if (!token) {
-      return NextResponse.json({ error: 'Token tidak ditemukan' }, { status: 401 });
-    }
-
-    const user = await getUserFromToken(token);
+    const user = await authenticateUser(request)
     if (!user || !user.nasabah) {
       return NextResponse.json({ error: 'Anda bukan nasabah' }, { status: 403 });
     }

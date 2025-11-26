@@ -24,3 +24,9 @@ export const formatDate = (dateString: string) =>
     hour: '2-digit', 
     minute: '2-digit' 
   });
+
+export const generateTransactionNo = (prefix: string) => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${prefix}-${timestamp}-${random}`;
+};
