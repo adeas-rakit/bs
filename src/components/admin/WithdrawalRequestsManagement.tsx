@@ -141,7 +141,7 @@ export default function WithdrawalRequestsManagement() {
   }
 
   const filteredRequests = useMemo(() => {
-    return requests.filter(req => 
+    return (Array.isArray(requests) ? requests : []).filter(req => 
         (req.nasabah?.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) || req.nasabah?.accountNo.includes(searchTerm)) &&
         (statusFilter === 'all' || req.status === statusFilter)
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

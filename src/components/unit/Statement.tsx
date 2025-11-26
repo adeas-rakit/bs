@@ -119,7 +119,7 @@ const Statement = () => {
   ], [nasabahList]);
 
   const SkeletonCard = () => (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border rounded-lg p-4 space-y-3 mx-2">
         <div className="flex justify-between items-center">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-1/4" />
@@ -138,8 +138,8 @@ const Statement = () => {
         <CardDescription>Lihat semua transaksi yang pernah dilakukan.</CardDescription>
       </CardHeader>
       <CardContent className="px-2">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
-          <div className="relative col-span-1 md:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 md:gap-2 mb-4 px-2 space-y-2">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Cari nama nasabah..."
@@ -148,8 +148,10 @@ const Statement = () => {
               className="pl-10"
             />
           </div>
+          <div className="grid grid-cols-2 gap-2 col-span-2">
           <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="Dari tanggal" />
           <DatePicker value={dateTo} onChange={setDateTo} placeholder="Sampai tanggal" />
+          </div>
           <Combobox 
             options={nasabahOptions}
             value={selectedNasabah}
@@ -157,7 +159,7 @@ const Statement = () => {
             placeholder='Pilih Nasabah'
             searchPlaceholder='Cari nasabah...'
             emptyPlaceholder='Nasabah tidak ditemukan'
-            className="col-span-1 md:col-span-4"
+            className="col-span-1"
           />
         </div>
 

@@ -27,6 +27,6 @@ export const formatDate = (dateString: string) =>
 
 export const generateTransactionNo = (prefix: string) => {
     const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
     return `${prefix}-${timestamp}-${random}`;
 };

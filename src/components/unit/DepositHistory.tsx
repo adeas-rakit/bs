@@ -98,7 +98,7 @@ const DepositHistory = ({ newlyAddedTransactionId }: DepositHistoryProps) => {
   }
 
   const SkeletonCard = () => (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border rounded-lg p-4 space-y-3 mx-2">
       <div className="flex justify-between items-center">
         <Skeleton className="h-5 w-24" />
         <Skeleton className="h-5 w-16" />
@@ -119,7 +119,7 @@ const DepositHistory = ({ newlyAddedTransactionId }: DepositHistoryProps) => {
         <CardDescription>Lihat semua transaksi tabungan yang pernah dilakukan.</CardDescription>
       </CardHeader>
       <CardContent className="px-2">
-        <div className="flex flex-col md:flex-row gap-2 mb-4">
+        <div className="flex flex-col md:flex-row gap-2 mb-4 mx-2">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input

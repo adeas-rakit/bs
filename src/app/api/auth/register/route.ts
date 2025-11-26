@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
         name,
         phone,
         role: role || 'NASABAH',
+        status: role === 'UNIT' ? 'DITANGGUHKAN' : 'AKTIF',
         qrCode,
-        // ID Unit tidak diwajibkan saat registrasi, akan diisi nanti
         unitId: null,
       },
       include: {
@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
           user: {
             connect: { id: user.id }
           },
-          // Relasi ke unit akan diisi saat scan QR pertama kali
           createdBy: { 
             connect: { id: user.id } 
           }
@@ -75,6 +74,15 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const { password: _, ...userWithoutPassword } = user
+
+    if (user.role === 'UNIT') {
+      return NextResponse.json({
+        message: 'Registrasi unit berhasil. Akun Anda perlu diverifikasi oleh Admin sebelum dapat digunakan.',
+        user: userWithoutPassword,
+      })
+    }
+
     const token = jwt.sign(
       {
         userId: user.id,
@@ -84,8 +92,6 @@ export async function POST(request: NextRequest) {
       JWT_SECRET,
       { expiresIn: '7d' }
     )
-
-    const { password: _, ...userWithoutPassword } = user
 
     return NextResponse.json({
       message: 'Registrasi berhasil. Akun Anda akan dihubungkan dengan Unit Bank Sampah saat transaksi pertama.',

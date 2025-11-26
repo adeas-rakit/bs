@@ -31,6 +31,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (user.status === 'DITANGGUHKAN') {
+      return NextResponse.json(
+        { error: 'Akun Anda perlu diverifikasi oleh Admin sebelum dapat digunakan.' },
+        { status: 403 }
+      )
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return NextResponse.json(

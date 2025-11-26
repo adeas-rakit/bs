@@ -49,7 +49,7 @@ export default function RootLayout({
         <AppWrapper>
           {children}
         </AppWrapper>
-        <Toaster />
+        <Toaster position="top-center" />
       </body>
     </html>
   );

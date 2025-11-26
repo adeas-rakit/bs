@@ -357,7 +357,7 @@ export default function NasabahManagement({ onUpdate }: NasabahManagementProps) 
           <DialogHeader>
             <DialogTitle>Edit Nasabah</DialogTitle>
             <DialogDescription>
-              Perbarui data nasabah. ID Pengguna: {selectedNasabah?.user.id}
+              Perbarui data nasabah.<br/>ID Pengguna: {selectedNasabah?.user.id}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">

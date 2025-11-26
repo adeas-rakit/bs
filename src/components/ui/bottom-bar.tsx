@@ -69,7 +69,7 @@ export default function BottomBar({ navItems, activeTab, onTabChange, onLogout, 
   )
 
   return (
-    <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit lg:hidden">
+    <div className="fixed inset-x-0 bottom-6 z-40 mx-auto w-fit lg:hidden">
       <div className="flex h-auto items-center space-x-1 py-2 px-4 rounded-full border bg-background p-1 shadow-lg">
         {visibleItems.map((item) => (
           <BarButton key={item.value} item={item} isActive={activeTab === item.value} />
