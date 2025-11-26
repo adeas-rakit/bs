@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Combobox } from '@/components/ui/combobox'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import useDebounce from '@/hooks/useDebounce'
 
 interface WithdrawalRequest {
   id: string
@@ -70,6 +71,7 @@ export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalReq
   const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('PENDING') // Default to PENDING
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   
   const [isRejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [isApproveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -80,7 +82,12 @@ export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalReq
     setLoading(true);
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/units/withdrawals?status=${statusFilter}`, { 
+      const params = new URLSearchParams();
+      params.append('status', statusFilter);
+      if (debouncedSearchTerm) {
+        params.append('search', debouncedSearchTerm);
+      }
+      const response = await fetch(`/api/units/withdrawals?${params.toString()}`, { 
         headers: { 'Authorization': `Bearer ${token}` } 
       })
       if (!response.ok) {
@@ -99,7 +106,7 @@ export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalReq
 
   useEffect(() => {
     fetchRequests();
-  }, [statusFilter]);
+  }, [statusFilter, debouncedSearchTerm]);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
 
@@ -165,20 +172,6 @@ export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalReq
   const handleConfirmApprove = () => {
     processWithdrawalRequest('approve');
   };
-
-  const filteredRequests = useMemo(() => {
-    if (!Array.isArray(requests)) return [];
-    
-    const lowercasedSearchTerm = searchTerm.toLowerCase();
-
-    const filtered = requests.filter(req => {
-      const name = req.nasabah?.user?.name?.toLowerCase() || '';
-      const accountNo = req.nasabah?.accountNo?.toLowerCase() || '';
-      return name.includes(lowercasedSearchTerm) || accountNo.includes(lowercasedSearchTerm);
-    });
-
-    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [requests, searchTerm]);
   
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -209,7 +202,7 @@ export default function WithdrawalRequestsManagement({ onUpdate }: WithdrawalReq
           <WithdrawalRequestsManagementSkeleton />
         ) : (
           <div className="space-y-4">
-              {filteredRequests.length > 0 ? filteredRequests.map((req) => (
+              {requests.length > 0 ? requests.map((req) => (
                 <InfoCard
                     key={req.id}
                     id={req.id}

@@ -5,7 +5,8 @@ import { getUserFromToken } from '@/lib/auth';
 import { generateTransactionNo } from '@/lib/utils';
 
 const updateWithdrawalSchema = z.object({
-  status: z.enum(['APPROVED', 'REJECTED']),
+  id: z.string(),
+  action: z.enum(['APPROVE', 'REJECT']),
 });
 
 async function authenticateAdmin(request: NextRequest) {
@@ -25,64 +26,77 @@ export async function GET(request: NextRequest) {
         await authenticateAdmin(request);
 
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '10');
-        const status = searchParams.get('status') || 'PENDING';
-        const skip = (page - 1) * limit;
+        const search = searchParams.get('search');
+        const status = searchParams.get('status');
 
-        const where: any = {
-            status: status.toUpperCase(),
-        };
+        const where: any = {};
 
-        const [withdrawalRequests, total] = await Promise.all([
-            db.withdrawalRequest.findMany({
-                where,
-                skip,
-                take: limit,
-                include: {
+        if (status && status.toUpperCase() !== 'ALL') {
+            where.status = status.toUpperCase();
+        }
+
+        if (search) {
+            where.OR = [
+                {
                     nasabah: {
-                        include: {
-                            user: true,
+                        user: {
+                            name: {
+                                contains: search,
+                                mode: 'insensitive',
+                            },
                         },
                     },
-                    unit: true,
                 },
-                orderBy: {
-                    createdAt: 'desc',
+                {
+                    nasabah: {
+                        accountNo: {
+                            contains: search,
+                            mode: 'insensitive',
+                        },
+                    },
                 },
-            }),
-            db.withdrawalRequest.count({ where }),
-        ]);
+            ];
+        }
 
-        const formattedRequests = withdrawalRequests.map(wr => ({
-            ...wr,
-            nasabahName: wr.nasabah.user.name,
-            unitName: wr.unit?.name || 'N/A',
-        }));
+        const withdrawalRequests = await db.withdrawalRequest.findMany({
+            where,
+            include: {
+                nasabah: {
+                    include: {
+                        user: true,
+                    },
+                },
+                unit: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
 
         return NextResponse.json({
-            data: formattedRequests,
-            totalPages: Math.ceil(total / limit),
-            currentPage: page,
+            withdrawals: withdrawalRequests,
         });
 
     } catch (error: any) {
+        if (error.message === 'Token tidak ditemukan' || error.message === 'Unauthorized') {
+            return NextResponse.json({ error: error.message }, { status: 401 });
+        }
         console.error("Error fetching withdrawal requests:", error);
         return NextResponse.json({ error: 'Terjadi kesalahan internal.' }, { status: 500 });
     }
 }
 
-
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-    const id = params.id;
-    
+export async function POST(request: NextRequest) {
     try {
         const admin = await authenticateAdmin(request);
         const body = await request.json();
-        const { status } = updateWithdrawalSchema.parse(body);
+        const { id, action } = updateWithdrawalSchema.parse(body);
 
         const withdrawalRequest = await db.withdrawalRequest.findUnique({
             where: { id },
+            include: {
+                nasabah: true
+            }
         });
 
         if (!withdrawalRequest) {
@@ -93,12 +107,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             return NextResponse.json({ error: 'Hanya permintaan yang PENDING yang dapat diproses' }, { status: 400 });
         }
         
-        if (status === 'APPROVED') {
+        if (action === 'APPROVE') {
+            if (withdrawalRequest.nasabah.balance < withdrawalRequest.amount) {
+                return NextResponse.json({ error: 'Saldo nasabah tidak mencukupi' }, { status: 400 });
+            }
+
             if (!withdrawalRequest.unitId) {
                 console.error(`Missing unitId in withdrawal request ${withdrawalRequest.id}`);
                 return NextResponse.json({ error: 'Data inkonsisten: ID unit pada request penarikan tidak ditemukan.' }, { status: 500 });
             }
-            // Perbaikan: Simpan unitId yang sudah divalidasi ke variabel baru.
             const unitId = withdrawalRequest.unitId;
 
             const unit = await db.unit.findUnique({
@@ -120,7 +137,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
                     data: {
                         transactionNo: generateTransactionNo('WDR'),
                         nasabahId: withdrawalRequest.nasabahId,
-                        // Perbaikan: Gunakan variabel baru yang tipenya sudah pasti string.
                         unitId: unitId, 
                         userId: admin.id,
                         type: 'WITHDRAWAL',
@@ -144,18 +160,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
                 return finalWithdrawalRequest;
             });
             
-            return NextResponse.json({ message: 'Permintaan disetujui', withdrawalRequest: updatedRequest });
+            return NextResponse.json({ message: 'Permintaan penarikan berhasil disetujui', withdrawalRequest: updatedRequest });
     
         } else { // REJECT
           const updatedRequest = await db.withdrawalRequest.update({
             where: { id },
-            data: { status: 'REJECTED' },
+            data: { 
+                status: 'REJECTED',
+                processedById: admin.id,
+             },
           })
-          return NextResponse.json({ message: 'Permintaan ditolak', withdrawalRequest: updatedRequest })
+          return NextResponse.json({ message: 'Permintaan penarikan berhasil ditolak', withdrawalRequest: updatedRequest })
         }
       } catch (error: any) {
         if (error instanceof z.ZodError) {
-          return NextResponse.json({ error: error.issues[0].message }, { status: 400 })
+          return NextResponse.json({ error: error.issues.map(i => i.message).join(', ') }, { status: 400 })
+        }
+        if (error.message === 'Token tidak ditemukan' || error.message === 'Unauthorized') {
+            return NextResponse.json({ error: error.message }, { status: 401 });
         }
         console.error("Error processing withdrawal:", error);
         return NextResponse.json({ error: 'Terjadi kesalahan internal.' }, { status: 500 })

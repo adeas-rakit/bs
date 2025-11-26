@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akun unit tidak ditemukan' }, { status: 403 })
     }
 
-    const status = request.nextUrl.searchParams.get('status') as WithdrawalRequestStatus | 'all' | null;
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') as WithdrawalRequestStatus | 'all' | null;
+    const search = searchParams.get('search');
 
     let whereClause: any = {
       unitId: user.unit.id,
@@ -34,6 +36,27 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all' && Object.values(WithdrawalRequestStatus).includes(status as WithdrawalRequestStatus)) {
       whereClause.status = status as WithdrawalRequestStatus;
+    }
+
+    if (search) {
+        whereClause.OR = [
+            {
+                nasabah: {
+                    user: {
+                        name: {
+                            contains: search,
+                        },
+                    },
+                },
+            },
+            {
+                nasabah: {
+                    accountNo: {
+                        contains: search,
+                    },
+                },
+            },
+        ];
     }
 
     const withdrawals = await db.withdrawalRequest.findMany({

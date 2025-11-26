@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Combobox } from '@/components/ui/combobox'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import useDebounce from '@/hooks/useDebounce'
 
 interface WithdrawalRequest {
   id: string
@@ -62,22 +63,28 @@ const WithdrawalRequestsManagementSkeleton = () => (
     </div>
 );
 
-
 export default function WithdrawalRequestsManagement() {
   const [requests, setRequests] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/admin/withdrawals', { headers: { 'Authorization': `Bearer ${token}` } })
+      const params = new URLSearchParams()
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      
+      const response = await fetch(`/api/admin/withdrawals?${params.toString()}`, { 
+        headers: { 'Authorization': `Bearer ${token}` } 
+      })
       if (!response.ok) throw new Error('Gagal memuat permintaan penarikan');
-      const data = await response.json()
-      setRequests(data)
+      const data = await response.json();
+      setRequests(data.withdrawals || []);
     } catch (error) {
       toast.error("Error", { description: "Gagal memuat data" })
       setRequests([]);
@@ -86,7 +93,9 @@ export default function WithdrawalRequestsManagement() {
     }
   }
 
-  useEffect(() => { fetchRequests() }, [])
+  useEffect(() => { 
+    fetchRequests() 
+  }, [debouncedSearchTerm, statusFilter])
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
 
@@ -139,13 +148,6 @@ export default function WithdrawalRequestsManagement() {
         }
     });
   }
-
-  const filteredRequests = useMemo(() => {
-    return (Array.isArray(requests) ? requests : []).filter(req => 
-        (req.nasabah?.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) || req.nasabah?.accountNo.includes(searchTerm)) &&
-        (statusFilter === 'all' || req.status === statusFilter)
-    ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [requests, searchTerm, statusFilter])
   
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -178,7 +180,7 @@ export default function WithdrawalRequestsManagement() {
           <WithdrawalRequestsManagementSkeleton />
         ) : (
           <div className="space-y-4">
-              {filteredRequests.length > 0 ? filteredRequests.map((req) => (
+              {requests.length > 0 ? requests.map((req) => (
                 <InfoCard
                     key={req.id}
                     id={req.id}
