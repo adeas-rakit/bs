@@ -99,26 +99,6 @@ export default function DemoAccounts() {
     }
   }
 
-  const handleQuickLogin = (email: string, password: string) => {
-    // Auto-fill login form and submit
-    const form = document.querySelector('form') as HTMLFormElement
-    if (form) {
-      const emailInput = form.querySelector('input[name="email"]') as HTMLInputElement
-      const passwordInput = form.querySelector('input[name="password"]') as HTMLInputElement
-      
-      if (emailInput && passwordInput) {
-        emailInput.value = email
-        passwordInput.value = password
-        
-        // Trigger submit event
-        form.dispatchEvent(new Event('submit', { cancelable: true }))
-      }
-    } else {
-      // Fallback: redirect to login page with query params
-      window.location.href = `/?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
       <div className="max-w-6xl mx-auto">
@@ -213,13 +193,6 @@ export default function DemoAccounts() {
                           </div>
                         </div>
                       </div>
-
-                      <Button 
-                        className="w-full mt-3"
-                        onClick={() => handleQuickLogin(account.email, account.password)}
-                      >
-                        Login sebagai {account.name}
-                      </Button>
                     </div>
                   ))}
 

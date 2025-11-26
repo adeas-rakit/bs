@@ -17,39 +17,6 @@ export default function Home() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     const userData = localStorage.getItem('user')
-    const urlParams = new URLSearchParams(window.location.search)
-    const autoEmail = urlParams.get('email')
-    const autoPassword = urlParams.get('password')
-
-    const autoLogin = async () => {
-      try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email: autoEmail, password: autoPassword }),
-        })
-        const data = await response.json()
-        if (response.ok) {
-          localStorage.setItem('token', data.token)
-          localStorage.setItem('user', JSON.stringify(data.user))
-          setUser(data.user)
-          toast.success("Login berhasil", {
-            description: `Selamat datang kembali, ${data.user.name}!`,
-          })
-          window.history.replaceState({}, document.title, window.location.pathname)
-        } else {
-          toast.error("Login gagal", {
-            description: data.error,
-          })
-        }
-      } catch (error) {
-        toast.error("Terjadi kesalahan", {
-          description: "Silakan coba lagi",
-        })
-      }
-    }
 
     const fetchUser = async () => {
       if (token && userData) {
@@ -77,8 +44,6 @@ export default function Home() {
         } catch (error) {
           handleLogout()
         }
-      } else if (autoEmail && autoPassword) {
-        await autoLogin()
       }
       setLoading(false)
     }
