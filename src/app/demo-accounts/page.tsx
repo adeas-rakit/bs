@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,12 +15,21 @@ import {
   Check
 } from 'lucide-react'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function DemoAccounts() {
   const [showPasswords, setShowPasswords] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEMO !== 'true') {
+      router.replace('/')
+    }
+  }, [router])
+
+  if (process.env.NEXT_PUBLIC_DEMO !== 'true') {
+    return null
+  }
 
   const accounts = [
     {

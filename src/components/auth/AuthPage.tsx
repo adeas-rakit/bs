@@ -283,9 +283,11 @@ export default function AuthPage() {
                   </AnimatePresence>
                 </Tabs>
                 <div className="mt-6 text-center">
-                  <Button variant="link" onClick={() => router.push('/demo-accounts')} className="text-green-600 hover:text-green-800">
-                    Lihat Akun Demo <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                  {process.env.NEXT_PUBLIC_DEMO === 'true' && (
+                    <Button variant="link" onClick={() => router.push('/demo-accounts')} className="text-green-600 hover:text-green-800">
+                      Lihat Akun Demo <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </>
