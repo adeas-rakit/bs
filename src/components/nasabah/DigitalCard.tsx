@@ -24,23 +24,29 @@ export default function DigitalCard({ user, balance, totalWeight }: DigitalCardP
                   <span className="text-2xl font-bold tracking-wider">Kartu Nasabah</span>
                   <img src="/logo.svg" alt="Logo" className="w-12 h-12 opacity-80"/>
               </div>
-              <div className="text-center my-8">
-                  <div className="bg-white p-3 inline-block rounded-lg ring-4 ring-white/50">
-                    <Canvas
-                      text={user.qrCode || ''}
-                      options={{
-                        width: 216, // 240px total width - 24px padding
-                        quality: 1,
-                        errorCorrectionLevel: 'L',
-                        margin: 1,
-                        color: {
-                          dark: "#000000",
-                          light: "#FFFFFF",
-                        },
-                      }}
-                    />
-                  </div>
-              </div>
+               <div className="text-center my-8">
+                   <div className="bg-white p-3 inline-block rounded-lg ring-4 ring-white/50">
+                     {user.qrCode ? (
+                       <Canvas
+                         text={user.qrCode}
+                         options={{
+                           width: 216,
+                           quality: 1,
+                           errorCorrectionLevel: 'L',
+                           margin: 1,
+                           color: {
+                             dark: "#000000",
+                             light: "#FFFFFF",
+                           },
+                         }}
+                       />
+                     ) : (
+                       <div className="w-[216px] h-[216px] flex items-center justify-center text-gray-500 text-sm">
+                         QR Code tidak tersedia
+                       </div>
+                     )}
+                   </div>
+               </div>
               <div className="text-center mb-6">
                   <p className="text-2xl font-bold tracking-wider">{user.name}</p>
                   <p className="text-lg text-green-400 tracking-widest font-sans">{user.nasabah?.accountNo}</p>

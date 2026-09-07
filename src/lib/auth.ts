@@ -38,6 +38,7 @@ export async function getUserFromToken(token: string) {
         unitId: true,
         unit: true,
         nasabah: true,
+        qrCode: true,
       }
     });
 

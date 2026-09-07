@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db'; 
+import { db } from '@/lib/db';
 import { UserStatus } from '@prisma/client';
 async function createSeedAccounts() {
   try {
@@ -198,10 +198,10 @@ async function createSeedAccounts() {
         where: { name_unitId: { name: waste.name, unitId: waste.unitId } },
         update: { pricePerKg: waste.pricePerKg },
         create: {
-            name: waste.name,
-            pricePerKg: waste.pricePerKg,
-            unit: { connect: { id: waste.unitId } },
-            createdBy: { connect: { id: admin.id } },
+          name: waste.name,
+          pricePerKg: waste.pricePerKg,
+          unit: { connect: { id: waste.unitId } },
+          createdBy: { connect: { id: admin.id } },
         },
       });
     }

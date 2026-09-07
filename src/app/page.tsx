@@ -9,10 +9,13 @@ import NasabahDashboard from '@/components/dashboard/NasabahDashboard'
 import { TabProvider } from '@/context/TabContext';
 import { motion, AnimatePresence } from 'framer-motion'
 import Loading from '@/components/ui/Loading'
+import SetupWizard from '@/components/setup/SetupWizard'
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showSetup, setShowSetup] = useState(false)
+  const [checkingSetup, setCheckingSetup] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -48,7 +51,22 @@ export default function Home() {
       setLoading(false)
     }
 
+    const checkSetup = async () => {
+      try {
+        const response = await fetch('/api/setup/status')
+        if (response.ok) {
+          const data = await response.json()
+          setShowSetup(!data.hasUsers)
+        }
+      } catch (error) {
+        console.error('Failed to check setup status:', error)
+      } finally {
+        setCheckingSetup(false)
+      }
+    }
+
     fetchUser()
+    checkSetup()
   }, [])
 
   const handleLogout = () => {
@@ -57,7 +75,16 @@ export default function Home() {
     setUser(null)
   }
 
+  const handleSetupComplete = () => {
+    setShowSetup(false)
+    window.location.href = '/'
+  }
+
   const renderDashboard = () => {
+    if (showSetup) {
+      return <SetupWizard onComplete={handleSetupComplete} />
+    }
+
     if (!user) return <AuthPage />;
 
     let dashboardComponent;
@@ -82,7 +109,7 @@ export default function Home() {
     );
   }
 
-  if (loading) {
+  if (loading || checkingSetup) {
     return <Loading />
   }
 
@@ -90,7 +117,7 @@ export default function Home() {
     <main className="min-h-screen">
        <AnimatePresence mode="wait">
         <motion.div
-          key={user ? user.role : 'auth'}
+          key={showSetup ? 'setup' : user ? user.role : 'auth'}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
